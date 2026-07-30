@@ -1,4 +1,4 @@
-package com.group5.marketplace.controller;
+package com.group5.marketplace.auth.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

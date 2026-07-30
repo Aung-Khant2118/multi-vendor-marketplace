@@ -1,12 +1,12 @@
-package com.group5.marketplace.service;
+package com.group5.marketplace.auth.service;
 
-import com.group5.marketplace.dto.RegisterRequest;
-import com.group5.marketplace.entity.Role;
-import com.group5.marketplace.entity.User;
-import com.group5.marketplace.repository.UserRepository;
-import com.group5.marketplace.service.JwtService;
-import com.group5.marketplace.dto.LoginRequest;
-import com.group5.marketplace.dto.LoginResponse;
+import com.group5.marketplace.auth.dto.RegisterRequest;
+import com.group5.marketplace.user.entity.Role;
+import com.group5.marketplace.user.entity.User;
+import com.group5.marketplace.user.repository.UserRepository;
+import com.group5.marketplace.auth.dto.LoginRequest;
+import com.group5.marketplace.auth.dto.LoginResponse;
+import com.group5.marketplace.auth.security.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

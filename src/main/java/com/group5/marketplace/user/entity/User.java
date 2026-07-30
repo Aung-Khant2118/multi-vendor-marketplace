@@ -1,4 +1,4 @@
-package com.group5.marketplace.entity;
+package com.group5.marketplace.user.entity;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

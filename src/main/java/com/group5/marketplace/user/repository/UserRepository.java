@@ -1,6 +1,6 @@
-package com.group5.marketplace.repository;
+package com.group5.marketplace.user.repository;
 
-import com.group5.marketplace.entity.User;
+import com.group5.marketplace.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

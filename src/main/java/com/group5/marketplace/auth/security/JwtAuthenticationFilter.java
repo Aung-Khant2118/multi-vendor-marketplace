@@ -1,7 +1,5 @@
-package com.group5.marketplace.config;
+package com.group5.marketplace.auth.security;
 
-import com.group5.marketplace.service.CustomUserDetailsService;
-import com.group5.marketplace.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;

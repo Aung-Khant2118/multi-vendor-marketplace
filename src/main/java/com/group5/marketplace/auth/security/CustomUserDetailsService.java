@@ -1,6 +1,6 @@
-package com.group5.marketplace.service;
+package com.group5.marketplace.auth.security;
 
-import com.group5.marketplace.repository.UserRepository;
+import com.group5.marketplace.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;

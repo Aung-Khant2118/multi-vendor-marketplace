@@ -1,9 +1,9 @@
-package com.group5.marketplace.controller;
+package com.group5.marketplace.auth.controller;
 
-import com.group5.marketplace.dto.LoginRequest;
-import com.group5.marketplace.dto.LoginResponse;
-import com.group5.marketplace.dto.RegisterRequest;
-import com.group5.marketplace.service.AuthService;
+import com.group5.marketplace.auth.dto.LoginRequest;
+import com.group5.marketplace.auth.dto.LoginResponse;
+import com.group5.marketplace.auth.dto.RegisterRequest;
+import com.group5.marketplace.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;

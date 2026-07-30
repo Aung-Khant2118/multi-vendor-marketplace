@@ -1,6 +1,6 @@
-package com.group5.marketplace.config;
+package com.group5.marketplace.auth.config;
 
-import com.group5.marketplace.service.CustomUserDetailsService;
+import com.group5.marketplace.auth.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

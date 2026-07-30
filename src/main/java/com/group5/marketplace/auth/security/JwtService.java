@@ -1,4 +1,4 @@
-package com.group5.marketplace.service;
+package com.group5.marketplace.auth.security;
 
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;

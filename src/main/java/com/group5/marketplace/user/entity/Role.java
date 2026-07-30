@@ -1,4 +1,4 @@
-package com.group5.marketplace.entity;
+package com.group5.marketplace.user.entity;
 
 public enum Role {
     CUSTOMER,
