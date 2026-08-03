@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.Claims;
 import java.util.Date;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.crypto.SecretKey;
 
@@ -20,6 +22,8 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    // in-memory blacklist for logged-out tokens (token -> expiration)
+    private final ConcurrentMap<String, Date> blacklistedTokens = new ConcurrentHashMap<>();
 
 //    create the signing key
     private SecretKey getSigningKey() {
@@ -59,8 +63,33 @@ public class JwtService {
         final String username = extractUsername(token);
 
         return username.equals(email)
-                && !isTokenExpired(token);
+                && !isTokenExpired(token)
+                && !isTokenBlacklisted(token);
     }
+
+    // logout: add token to blacklist so it cannot be used again
+    public void logout(String token) {
+        try {
+            Date expiration = extractAllClaims(token).getExpiration();
+            if (expiration != null) {
+                blacklistedTokens.put(token, expiration);
+            }
+        } catch (Exception ignored) {
+            // ignore invalid tokens on logout attempt
+        }
+    }
+
+    // helper to check blacklisted tokens and remove expired entries lazily
+    private boolean isTokenBlacklisted(String token) {
+        Date exp = blacklistedTokens.get(token);
+        if (exp == null) return false;
+        if (exp.before(new Date())) {
+            blacklistedTokens.remove(token);
+            return false;
+        }
+        return true;
+    }
+
 //helper method
     private boolean isTokenExpired(String token) {
         return extractAllClaims(token)

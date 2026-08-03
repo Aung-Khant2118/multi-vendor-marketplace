@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Date;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -34,6 +35,13 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    // fields for password reset flow
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date resetTokenExpiry;
+    
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
