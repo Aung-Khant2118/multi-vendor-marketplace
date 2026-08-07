@@ -37,26 +37,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String email = jwtService.extractUsername(jwt);
 
-        if (email != null &&
-                SecurityContextHolder.getContext().getAuthentication() == null) {
-
-            var userDetails =
-                    userDetailsService.loadUserByUsername(email);
-
-            if (jwtService.isTokenValid(jwt, userDetails.getUsername())) {
-
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
-
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request));
-
-                SecurityContextHolder.getContext()
-                        .setAuthentication(authToken);
+        // if token invalid or username couldn't be extracted, skip authentication
+        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                var userDetails = userDetailsService.loadUserByUsername(email);
+                if (jwtService.isTokenValid(jwt, userDetails.getUsername())) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
+            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException ex) {
+                // user not found: treat as unauthenticated and continue filter chain
+            } catch (Exception ex) {
+                // any other parsing/validation error -- do not fail the request here
             }
         }
 

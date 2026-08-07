@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -15,52 +16,61 @@ import javax.crypto.SecretKey;
 
 @Service
 public class JwtService {
-
-    @Value("${jwt.secret}")
+n    @Value("${jwt.secret}")
     private String secret;
-
-    @Value("${jwt.expiration}")
+n    @Value("${jwt.expiration}")
     private long jwtExpiration;
 
     // in-memory blacklist for logged-out tokens (token -> expiration)
     private final ConcurrentMap<String, Date> blacklistedTokens = new ConcurrentHashMap<>();
 
-//    create the signing key
+    // create the signing key
     private SecretKey getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-//    generate token
+    // generate token
     public String generateToken(String email) {
-
         return Jwts.builder()
-                .subject(email)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+                .setSubject(email)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + jwtExpiration))
                 .signWith(getSigningKey())
                 .compact();
     }
 
-//    extract email
+    // extract email safely (returns null on invalid token)
     public String extractUsername(String token) {
-        return extractAllClaims(token).getSubject();
+        Claims claims = extractAllClaims(token);
+        return claims == null ? null : claims.getSubject();
     }
 
-//    read claims
+    // read claims using jjwt 0.11+ parserBuilder API; return null on parse errors
     private Claims extractAllClaims(String token) {
-
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (JwtException | IllegalArgumentException e) {
+            // invalid/expired token
+            return null;
+        }
     }
 
-//    check expiration
-    public boolean isTokenValid(String token, String email) {
+    // check expiration; treat invalid token as expired
+    private boolean isTokenExpired(String token) {
+        Claims claims = extractAllClaims(token);
+        if (claims == null) return true;
+        Date exp = claims.getExpiration();
+        return exp == null || exp.before(new Date());
+    }
 
-        final String username = extractUsername(token);
+    public boolean isTokenValid(String token, String email) {
+        String username = extractUsername(token);
+        if (username == null) return false;
 
         return username.equals(email)
                 && !isTokenExpired(token)
@@ -70,9 +80,12 @@ public class JwtService {
     // logout: add token to blacklist so it cannot be used again
     public void logout(String token) {
         try {
-            Date expiration = extractAllClaims(token).getExpiration();
-            if (expiration != null) {
-                blacklistedTokens.put(token, expiration);
+            Claims claims = extractAllClaims(token);
+            if (claims != null) {
+                Date expiration = claims.getExpiration();
+                if (expiration != null) {
+                    blacklistedTokens.put(token, expiration);
+                }
             }
         } catch (Exception ignored) {
             // ignore invalid tokens on logout attempt
@@ -90,10 +103,9 @@ public class JwtService {
         return true;
     }
 
-//helper method
-    private boolean isTokenExpired(String token) {
-        return extractAllClaims(token)
-                .getExpiration()
-                .before(new Date());
+    // optional maintenance: remove expired entries from blacklist
+    public void removeExpiredFromBlacklist() {
+        Date now = new Date();
+        blacklistedTokens.entrySet().removeIf(e -> e.getValue().before(now));
     }
 }

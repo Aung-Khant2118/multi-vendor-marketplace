@@ -7,6 +7,8 @@ import com.group5.marketplace.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.util.Date;
 import java.util.UUID;
@@ -22,7 +24,7 @@ public class PasswordResetService {
 
     public String requestPasswordReset(String email) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         String token = UUID.randomUUID().toString();
         Date expiry = new Date(System.currentTimeMillis() + RESET_TOKEN_EXPIRATION_MS);
@@ -38,10 +40,10 @@ public class PasswordResetService {
 
     public void resetPassword(ResetPasswordRequest request) {
         User user = userRepository.findByResetToken(request.getToken())
-                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired reset token"));
 
         if (user.getResetTokenExpiry() == null || user.getResetTokenExpiry().before(new Date())) {
-            throw new RuntimeException("Invalid or expired reset token");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired reset token");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

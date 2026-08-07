@@ -19,9 +19,9 @@ public class PasswordResetController {
 
     @PostMapping("/forgot-password")
     public String forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        String token = passwordResetService.requestPasswordReset(request.getEmail());
-        // In production: send token by email; returning token for demo/testing only
-        return "Password reset token: " + token;
+        // generate and email token in production; do not return token in response
+        passwordResetService.requestPasswordReset(request.getEmail());
+        return "If that email exists, a password reset link has been sent.";
     }
 
     @PostMapping("/reset-password")
