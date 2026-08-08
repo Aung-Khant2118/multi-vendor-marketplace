@@ -16,9 +16,11 @@ import javax.crypto.SecretKey;
 
 @Service
 public class JwtService {
-n    @Value("${jwt.secret}")
+
+    @Value("${jwt.secret}")
     private String secret;
-n    @Value("${jwt.expiration}")
+
+    @Value("${jwt.expiration}")
     private long jwtExpiration;
 
     // in-memory blacklist for logged-out tokens (token -> expiration)
@@ -49,7 +51,7 @@ public class JwtService {
     // read claims using jjwt 0.11+ parserBuilder API; return null on parse errors
     private Claims extractAllClaims(String token) {
         try {
-            return Jwts.parserBuilder()
+            return Jwts.parser()
                     .setSigningKey(getSigningKey())
                     .build()
                     .parseClaimsJws(token)
