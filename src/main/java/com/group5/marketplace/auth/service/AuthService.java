@@ -20,18 +20,26 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     public void register(RegisterRequest request) {
+
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
-        }
-        User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.CUSTOMER)
-                .build();
-        userRepository.save(user);
-    }
+           throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
+}
+if (request.getUsername() != null && userRepository.existsByUsername(request.getUsername())) {
+           throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
+}
+
+User user = User.builder()
+               .firstName(request.getFirstName())
+               .lastName(request.getLastName())
+               .email(request.getEmail())
+               .username(request.getUsername())
+               .phoneNumber(request.getPhoneNumber())
+               .password(passwordEncoder.encode(request.getPassword()))
+               .role(Role.CUSTOMER)
+               .build();
+
+userRepository.save(user);
+}
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));

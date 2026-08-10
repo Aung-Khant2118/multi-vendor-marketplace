@@ -1,10 +1,21 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+/**
+ * Ensure requests target the backend API root.
+ * If NEXT_PUBLIC_API_URL already includes '/api' suffix, use it as-is.
+ * Otherwise append '/api' so frontend calls match backend routes.
+ */
+const API_BASE = API_URL.endsWith('/api')
+  ? API_URL
+  : API_URL === ''
+  ? '/api'
+  : API_URL.replace(/\/$/, '') + '/api';
 
 // Create axios instance
 export const apiClient = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -62,6 +73,12 @@ export const authAPI = {
   // Reset password
   resetPassword: (token, password) => 
     apiClient.post(`/auth/reset-password/${token}`, { password }),
+};
+
+// ===== USER API ENDPOINTS =====
+export const userAPI = {
+  // Update current user profile
+  updateProfile: (data) => apiClient.patch('/users/me', data),
 };
 
 // ===== VENDOR API ENDPOINTS =====

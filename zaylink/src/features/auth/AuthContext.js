@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../utils/api';
+import { authAPI } from '../../services/api';
 
 // Create context
 const AuthContext = createContext();
@@ -28,8 +28,8 @@ export function AuthProvider({ children }) {
       setUser(response.data);
     } catch (error) {
       console.error('Error fetching user:', error);
-      localStorage.removeItem('token');
-      setToken(null);
+      // Do not clear token automatically - backend may not expose /auth/me in all environments.
+      // Keep token so user can still be authenticated for subsequent requests; user object remains null.
     } finally {
       setLoading(false);
     }
@@ -39,12 +39,20 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const response = await authAPI.login({ email, password });
-      const { token, user } = response.data;
-      
-      localStorage.setItem('token', token);
-      setToken(token);
-      setUser(user);
-      
+      const token = response.data?.token || response.data?.accessToken || null;
+      const userFromResponse = response.data?.user || null;
+
+      if (token) {
+        localStorage.setItem('token', token);
+        setToken(token);
+        if (userFromResponse) {
+          setUser(userFromResponse);
+        } else {
+          // fetch user profile from backend if login response doesn't include user
+          await fetchCurrentUser();
+        }
+      }
+
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -67,10 +75,26 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Register vendor
+  // Register vendor (map to backend /auth/register which expects firstName/lastName/email/password)
   const registerVendor = async (vendorData) => {
     try {
-      const response = await authAPI.registerVendor(vendorData);
+      // ensure we have firstName/lastName
+      let firstName = vendorData.firstName;
+      let lastName = vendorData.lastName;
+      if (!firstName && vendorData.fullName) {
+        const parts = vendorData.fullName.trim().split(/\s+/);
+        firstName = parts.shift();
+        lastName = parts.join(' ') || '';
+      }
+
+      const payload = {
+        firstName,
+        lastName,
+        email: vendorData.email,
+        password: vendorData.password,
+      };
+
+      const response = await authAPI.register(payload);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -81,16 +105,22 @@ export function AuthProvider({ children }) {
   };
 
   // Logout
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (e) {
+      // ignore network errors on logout
+    } finally {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+    }
   };
 
-  // Check if user is authenticated
-  const isAuthenticated = !!user;
+  // Check if user is authenticated (use token presence so login works even if /auth/me is not available)
+  const isAuthenticated = !!token;
 
-  // Check if user is vendor
+  // Check if user is vendor (falls back to accountType when role not available)
   const isVendor = user?.role === 'VENDOR' || user?.accountType === 'VENDOR';
 
   // The value object

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../features/auth/AuthContext';
+import { userAPI } from '../../services/api';
 import { useRouter } from 'next/router';
 import { toast } from 'react-toastify';
 
@@ -40,19 +41,31 @@ export default function RegisterForm() {
 
   const onSubmit = async (data) => {
     setLoading(true);
+    // split full name into firstName / lastName for backend RegisterRequest
+    const nameParts = data.fullName.trim().split(/\s+/);
     const registrationData = {
-      fullName: data.fullName,
-      username: data.username,
+      firstName: nameParts.shift(),
+      lastName: nameParts.join(' ') || '',
       email: data.email,
-      phoneNumber: data.phoneNumber,
       password: data.password,
-      accountType: data.accountType,
+      // frontend-only fields (username, phoneNumber, accountType) can be sent later via profile endpoints
     };
 
     const result = await registerUser(registrationData);
     setLoading(false);
 
     if (result.success) {
+      // update additional profile fields (username, phoneNumber, accountType)
+      try {
+        await userAPI.updateProfile({
+          username: data.username,
+          phoneNumber: data.phoneNumber,
+          accountType: data.accountType,
+        });
+      } catch (e) {
+        toast.warn('Profile update failed; you can complete it later in your account settings.');
+      }
+
       toast.success('Registration successful! Please check your email for verification.');
       router.push('/auth/login');
     } else {
@@ -149,7 +162,7 @@ export default function RegisterForm() {
                 type="radio"
                 value="vendor"
                 {...register('accountType')}
-                onChange={() => setAccountType('vendor')}
+                onChange={() => { setAccountType('vendor'); router.push('/auth/vendor-register'); }}
               />
               Vendor
             </label>
