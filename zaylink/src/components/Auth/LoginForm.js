@@ -33,7 +33,9 @@ export default function LoginForm() {
       toast.success('Login successful! Welcome back.');
       router.push('/dashboard');
     } else {
-      toast.error(result.error || 'Login failed. Please try again.');
+      const statusText = result.status ? ` (code: ${result.status})` : '';
+      toast.error((result.error || 'Login failed. Please try again.') + statusText);
+      console.error('Login failed response:', result.raw || result);
     }
   };
 

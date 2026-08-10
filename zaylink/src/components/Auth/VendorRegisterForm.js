@@ -100,7 +100,9 @@ export default function VendorRegisterForm() {
         toast.success('Vendor registration pending! You will be notified upon approval.');
         router.push('/auth/login');
       } else {
-        toast.error(result.error || 'Vendor registration failed. Please try again.');
+        const statusText = result.status ? ` (code: ${result.status})` : '';
+        toast.error((result.error || 'Vendor registration failed. Please try again.') + statusText);
+        console.error('Vendor registration error response:', result.raw || result);
       }
     } else {
       const customerData = {

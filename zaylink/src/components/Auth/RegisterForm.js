@@ -69,7 +69,9 @@ export default function RegisterForm() {
       toast.success('Registration successful! Please check your email for verification.');
       router.push('/auth/login');
     } else {
-      toast.error(result.error || 'Registration failed. Please try again.');
+      const statusText = result.status ? ` (code: ${result.status})` : '';
+      toast.error((result.error || 'Registration failed. Please try again.') + statusText);
+      console.error('Registration error response:', result.raw || result);
     }
   };
 

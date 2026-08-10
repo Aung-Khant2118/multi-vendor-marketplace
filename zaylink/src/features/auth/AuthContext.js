@@ -55,9 +55,14 @@ export function AuthProvider({ children }) {
 
       return { success: true, data: response.data };
     } catch (error) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message || 'Login failed. Please try again.';
+      console.error('Login error', status, error.response?.data || error.message);
       return {
         success: false,
-        error: error.response?.data?.message || 'Login failed. Please try again.',
+        error: message,
+        status,
+        raw: error.response?.data || null,
       };
     }
   };
@@ -68,9 +73,14 @@ export function AuthProvider({ children }) {
       const response = await authAPI.register(userData);
       return { success: true, data: response.data };
     } catch (error) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message || 'Registration failed. Please try again.';
+      console.error('Registration error', status, error.response?.data || error.message);
       return {
         success: false,
-        error: error.response?.data?.message || 'Registration failed. Please try again.',
+        error: message,
+        status,
+        raw: error.response?.data || null,
       };
     }
   };
@@ -97,9 +107,14 @@ export function AuthProvider({ children }) {
       const response = await authAPI.register(payload);
       return { success: true, data: response.data };
     } catch (error) {
+      const status = error.response?.status;
+      const message = error.response?.data?.message || error.message || 'Vendor registration failed. Please try again.';
+      console.error('Vendor registration error', status, error.response?.data || error.message);
       return {
         success: false,
-        error: error.response?.data?.message || 'Vendor registration failed. Please try again.',
+        error: message,
+        status,
+        raw: error.response?.data || null,
       };
     }
   };
