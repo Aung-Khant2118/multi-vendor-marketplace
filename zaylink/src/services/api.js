@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// Default to localhost backend for local development if env not provided
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 /**
  * Ensure requests target the backend API root.
@@ -9,8 +10,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
  */
 const API_BASE = API_URL.endsWith('/api')
   ? API_URL
-  : API_URL === ''
-  ? '/api'
   : API_URL.replace(/\/$/, '') + '/api';
 
 // Create axios instance
