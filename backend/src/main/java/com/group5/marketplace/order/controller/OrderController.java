@@ -56,4 +56,15 @@ public class OrderController {
         body.put("data", order);
         return ResponseEntity.ok(body);
     }
+
+    @PostMapping("/orders/{id}/cancel")
+    public ResponseEntity<Map<String, Object>> cancel(@PathVariable Long id, Principal principal) {
+        Long userId = currentUserService.getCurrentUserId(principal);
+        OrderResponse order = orderService.cancelOrder(userId, id);
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("message", "Order cancelled successfully");
+        body.put("data", order);
+        return ResponseEntity.ok(body);
+    }
 }

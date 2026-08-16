@@ -12,6 +12,10 @@ public class OrderResponse {
     private java.math.BigDecimal tax;
     private java.math.BigDecimal total;
     private String notes;
+    private Long shippingAddressId;
+    private Long billingAddressId;
+    private AddressSnapshotResponse shippingAddress;
+    private AddressSnapshotResponse billingAddress;
     private String paymentStatus;
     private String paymentMethod;
     private java.time.LocalDateTime createdAt;
@@ -35,6 +39,14 @@ public class OrderResponse {
     public void setTotal(java.math.BigDecimal total) { this.total = total; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public Long getShippingAddressId() { return shippingAddressId; }
+    public void setShippingAddressId(Long shippingAddressId) { this.shippingAddressId = shippingAddressId; }
+    public Long getBillingAddressId() { return billingAddressId; }
+    public void setBillingAddressId(Long billingAddressId) { this.billingAddressId = billingAddressId; }
+    public AddressSnapshotResponse getShippingAddress() { return shippingAddress; }
+    public void setShippingAddress(AddressSnapshotResponse shippingAddress) { this.shippingAddress = shippingAddress; }
+    public AddressSnapshotResponse getBillingAddress() { return billingAddress; }
+    public void setBillingAddress(AddressSnapshotResponse billingAddress) { this.billingAddress = billingAddress; }
     public String getPaymentStatus() { return paymentStatus; }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
     public String getPaymentMethod() { return paymentMethod; }

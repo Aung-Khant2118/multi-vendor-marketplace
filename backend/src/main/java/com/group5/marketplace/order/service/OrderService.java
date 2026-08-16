@@ -6,7 +6,9 @@ import com.group5.marketplace.cart.entity.Cart;
 import com.group5.marketplace.cart.entity.CartItem;
 import com.group5.marketplace.cart.repository.CartItemRepository;
 import com.group5.marketplace.cart.repository.CartRepository;
+import com.group5.marketplace.order.config.CheckoutProperties;
 import com.group5.marketplace.order.dto.*;
+import com.group5.marketplace.order.entity.AddressSnapshot;
 import com.group5.marketplace.order.entity.Order;
 import com.group5.marketplace.order.entity.OrderItem;
 import com.group5.marketplace.order.entity.OrderItemStatus;
@@ -27,8 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,11 +47,13 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
+    private final CheckoutProperties checkoutProperties;
 
     public OrderService(CartRepository cartRepository, CartItemRepository cartItemRepository,
                         ProductVariantRepository variantRepository, ProductRepository productRepository,
                         AddressRepository addressRepository, OrderRepository orderRepository,
-                        OrderItemRepository orderItemRepository, PaymentRepository paymentRepository) {
+                        OrderItemRepository orderItemRepository, PaymentRepository paymentRepository,
+                        CheckoutProperties checkoutProperties) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.variantRepository = variantRepository;
@@ -55,6 +62,7 @@ public class OrderService {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.paymentRepository = paymentRepository;
+        this.checkoutProperties = checkoutProperties;
     }
 
     private Cart getOrCreateCart(Long userId) {
@@ -156,13 +164,22 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty");
         }
 
-        validateAddress(userId, request.getShippingAddressId(), "shipping");
-        validateAddress(userId, request.getBillingAddressId(), "billing");
+        if (request.getShippingAddressId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipping address is required");
+        }
+        Address shippingAddress = ownedAddress(userId, request.getShippingAddressId(), "shipping");
+        Address billingAddress = request.getBillingAddressId() == null
+                ? shippingAddress
+                : ownedAddress(userId, request.getBillingAddressId(), "billing");
+
+        PaymentMethod method = parseMethod(request.getPaymentMethod());
 
         Order order = new Order();
         order.setUserId(userId);
-        order.setShippingAddressId(request.getShippingAddressId());
-        order.setBillingAddressId(request.getBillingAddressId());
+        order.setShippingAddressId(shippingAddress.getId());
+        order.setBillingAddressId(billingAddress.getId());
+        order.setShippingAddressSnapshot(toSnapshot(shippingAddress));
+        order.setBillingAddressSnapshot(toSnapshot(billingAddress));
         order.setNotes(request.getNotes());
         order = orderRepository.save(order);
 
@@ -194,21 +211,29 @@ public class OrderService {
             variantRepository.save(v);
         }
 
+        BigDecimal shippingCost = computeShipping(subtotal);
+        BigDecimal tax = computeTax(subtotal);
+        BigDecimal total = subtotal.add(shippingCost).add(tax);
+
         order.setSubtotal(subtotal);
-        order.setShippingCost(BigDecimal.ZERO);
-        order.setTax(BigDecimal.ZERO);
-        order.setTotal(subtotal);
+        order.setShippingCost(shippingCost);
+        order.setTax(tax);
+        order.setTotal(total);
         order.setItems(orderItems);
         orderRepository.save(order);
         orderItemRepository.saveAll(orderItems);
 
-        // simple payment record; method defaults to CASH_ON_DELIVERY
-        PaymentMethod method = parseMethod(request.getPaymentMethod());
         Payment payment = new Payment();
         payment.setOrderId(order.getId());
-        payment.setAmount(subtotal);
+        payment.setAmount(total);
         payment.setMethod(method);
         payment.setStatus(PaymentStatus.PENDING);
+        if (method != PaymentMethod.CASH_ON_DELIVERY) {
+            // simulated online payment: mark as completed immediately with a transaction id
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setTransactionId("TXN-" + UUID.randomUUID());
+            payment.setPaidAt(LocalDateTime.now());
+        }
         payment = paymentRepository.save(payment);
 
         cartItemRepository.deleteByCart(cart);
@@ -216,21 +241,47 @@ public class OrderService {
         return toOrderResponse(order, payment);
     }
 
-    private void validateAddress(Long userId, Long addressId, String kind) {
-        if (addressId == null) return;
+    private Address ownedAddress(Long userId, Long addressId, String kind) {
         Address address = addressRepository.findById(addressId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, kind + " address not found"));
         if (!address.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Address does not belong to the user");
         }
+        return address;
+    }
+
+    private AddressSnapshot toSnapshot(Address address) {
+        AddressSnapshot s = new AddressSnapshot();
+        s.setRecipientName(address.getRecipientName());
+        s.setPhone(address.getPhone());
+        s.setLine1(address.getLine1());
+        s.setLine2(address.getLine2());
+        s.setCity(address.getCity());
+        s.setRegion(address.getRegion());
+        s.setPostalCode(address.getPostalCode());
+        s.setCountry(address.getCountry());
+        return s;
+    }
+
+    private BigDecimal computeShipping(BigDecimal subtotal) {
+        if (subtotal.compareTo(checkoutProperties.getFreeShippingThreshold()) >= 0) {
+            return BigDecimal.ZERO;
+        }
+        return checkoutProperties.getShippingFlatRate().setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal computeTax(BigDecimal subtotal) {
+        return subtotal.multiply(checkoutProperties.getTaxRate()).setScale(2, RoundingMode.HALF_UP);
     }
 
     private PaymentMethod parseMethod(String method) {
-        if (method == null || method.isBlank()) return PaymentMethod.CASH_ON_DELIVERY;
+        if (method == null || method.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payment method is required");
+        }
         try {
             return PaymentMethod.valueOf(method.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            return PaymentMethod.CASH_ON_DELIVERY;
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid payment method");
         }
     }
 
@@ -272,6 +323,40 @@ public class OrderService {
     }
 
     @Transactional
+    public OrderResponse cancelOrder(Long userId, Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (!order.getUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your order");
+        }
+        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.CONFIRMED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be cancelled in its current state");
+        }
+
+        for (OrderItem oi : orderItemRepository.findByOrder(order)) {
+            ProductVariant v = variantRepository.findById(oi.getVariantId()).orElse(null);
+            if (v != null) {
+                int stock = v.getStock() == null ? 0 : v.getStock();
+                v.setStock(stock + oi.getQuantity());
+                variantRepository.save(v);
+            }
+            oi.setStatus(OrderItemStatus.PENDING);
+        }
+        orderItemRepository.saveAll(order.getItems());
+
+        order.setStatus(OrderStatus.CANCELED);
+        orderRepository.save(order);
+
+        Payment payment = paymentRepository.findFirstByOrderIdOrderByIdDesc(orderId).orElse(null);
+        if (payment != null && payment.getStatus() == PaymentStatus.COMPLETED) {
+            payment.setStatus(PaymentStatus.REFUNDED);
+            payment = paymentRepository.save(payment);
+        }
+
+        return toOrderResponse(order, payment);
+    }
+
+    @Transactional
     public OrderResponse updateOrderStatus(Long vendorId, Long orderId, UpdateOrderStatusRequest request) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
@@ -303,6 +388,16 @@ public class OrderService {
         orderItemRepository.saveAll(vendorItems);
 
         Payment payment = paymentRepository.findFirstByOrderIdOrderByIdDesc(orderId).orElse(null);
+        if (payment != null) {
+            if (newStatus == OrderStatus.DELIVERED && payment.getMethod() == PaymentMethod.CASH_ON_DELIVERY) {
+                payment.setStatus(PaymentStatus.COMPLETED);
+                payment.setPaidAt(LocalDateTime.now());
+                payment = paymentRepository.save(payment);
+            } else if (newStatus == OrderStatus.REFUNDED && payment.getStatus() == PaymentStatus.COMPLETED) {
+                payment.setStatus(PaymentStatus.REFUNDED);
+                payment = paymentRepository.save(payment);
+            }
+        }
         return toOrderResponse(order, payment);
     }
 
@@ -331,6 +426,10 @@ public class OrderService {
         r.setTax(order.getTax());
         r.setTotal(order.getTotal());
         r.setNotes(order.getNotes());
+        r.setShippingAddressId(order.getShippingAddressId());
+        r.setBillingAddressId(order.getBillingAddressId());
+        r.setShippingAddress(toSnapshotResponse(order.getShippingAddressSnapshot()));
+        r.setBillingAddress(toSnapshotResponse(order.getBillingAddressSnapshot()));
         r.setCreatedAt(order.getCreatedAt());
         if (payment != null) {
             r.setPaymentStatus(payment.getStatus().name());
@@ -341,6 +440,20 @@ public class OrderService {
                 .map(this::toOrderItemResponse)
                 .collect(Collectors.toList());
         r.setItems(lines);
+        return r;
+    }
+
+    private AddressSnapshotResponse toSnapshotResponse(AddressSnapshot s) {
+        AddressSnapshotResponse r = new AddressSnapshotResponse();
+        if (s == null) return r;
+        r.setRecipientName(s.getRecipientName());
+        r.setPhone(s.getPhone());
+        r.setLine1(s.getLine1());
+        r.setLine2(s.getLine2());
+        r.setCity(s.getCity());
+        r.setRegion(s.getRegion());
+        r.setPostalCode(s.getPostalCode());
+        r.setCountry(s.getCountry());
         return r;
     }
 

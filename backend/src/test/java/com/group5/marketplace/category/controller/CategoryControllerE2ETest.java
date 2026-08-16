@@ -34,7 +34,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "jwt.secret=VGhpc0lzQVN1cGVyU2VjcmV0S2V5Rm9yTWFya2V0cGxhY2UyMDI2VGhhdElzTG9uZ0Vub3VnaA==",
-        "jwt.expiration=86400000"
+        "jwt.expiration=86400000",
+        "jwt.refresh-expiration=604800000"
 })
 class CategoryControllerE2ETest {
 
@@ -70,8 +71,10 @@ class CategoryControllerE2ETest {
                 .firstName("Admin")
                 .lastName("User")
                 .email("admin@example.com")
+                .username("admin@example.com")
                 .password("password")
                 .role(Role.ADMIN)
+                .emailVerified(true)
                 .build();
 
         userRepository.save(admin);

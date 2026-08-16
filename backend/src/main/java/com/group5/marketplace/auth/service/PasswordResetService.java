@@ -1,9 +1,10 @@
 package com.group5.marketplace.auth.service;
 
 import com.group5.marketplace.auth.dto.ResetPasswordRequest;
-import com.group5.marketplace.auth.dto.ForgotPasswordRequest;
+import com.group5.marketplace.common.MailService;
 import com.group5.marketplace.user.entity.User;
 import com.group5.marketplace.user.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,13 +20,19 @@ public class PasswordResetService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MailService mailService;
+    private final String frontendUrl;
 
-    public PasswordResetService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public PasswordResetService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                                MailService mailService,
+                                @Value("${app.frontend-url:http://localhost:3000}") String frontendUrl) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.mailService = mailService;
+        this.frontendUrl = frontendUrl;
     }
 
-    public String requestPasswordReset(String email) {
+    public void requestPasswordReset(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -37,8 +44,9 @@ public class PasswordResetService {
 
         userRepository.save(user);
 
-        // In production, send token to user's email. Returning for testing.
-        return token;
+        // The token is sent to the user's email, never returned in the response.
+        String link = frontendUrl + "/auth/reset-password?token=" + token;
+        mailService.sendPasswordResetEmail(user.getEmail(), user.getFirstName(), link);
     }
 
     public void resetPassword(ResetPasswordRequest request) {

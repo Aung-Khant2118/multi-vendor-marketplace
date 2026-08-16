@@ -41,14 +41,24 @@ public class User implements UserDetails {
 
     @Temporal(TemporalType.TIMESTAMP)
     private Date resetTokenExpiry;
-    
+
+    // fields for email verification flow
+    @Column(name = "email_verified", nullable = false, columnDefinition = "boolean default false")
+    private boolean emailVerified;
+
+    @Column(name = "verification_token")
+    private String verificationToken;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date verificationTokenExpiry;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
     public User() {}
 
-    public User(long id, String firstName, String lastName, String email, String username, String phoneNumber, String password, String resetToken, Date resetTokenExpiry, Role role) {
+    public User(long id, String firstName, String lastName, String email, String username, String phoneNumber, String password, String resetToken, Date resetTokenExpiry, boolean emailVerified, String verificationToken, Date verificationTokenExpiry, Role role) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -58,6 +68,9 @@ public class User implements UserDetails {
         this.password = password;
         this.resetToken = resetToken;
         this.resetTokenExpiry = resetTokenExpiry;
+        this.emailVerified = emailVerified;
+        this.verificationToken = verificationToken;
+        this.verificationTokenExpiry = verificationTokenExpiry;
         this.role = role;
     }
 
@@ -78,6 +91,12 @@ public class User implements UserDetails {
     public void setResetToken(String resetToken) { this.resetToken = resetToken; }
     public Date getResetTokenExpiry() { return resetTokenExpiry; }
     public void setResetTokenExpiry(Date resetTokenExpiry) { this.resetTokenExpiry = resetTokenExpiry; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+    public String getVerificationToken() { return verificationToken; }
+    public void setVerificationToken(String verificationToken) { this.verificationToken = verificationToken; }
+    public Date getVerificationTokenExpiry() { return verificationTokenExpiry; }
+    public void setVerificationTokenExpiry(Date verificationTokenExpiry) { this.verificationTokenExpiry = verificationTokenExpiry; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
 
@@ -118,7 +137,7 @@ public class User implements UserDetails {
 
     public static Builder builder() { return new Builder(); }
     public static class Builder { 
-        private long id; private String firstName; private String lastName; private String email; private String username; private String phoneNumber; private String password; private String resetToken; private Date resetTokenExpiry; private Role role;
+        private long id; private String firstName; private String lastName; private String email; private String username; private String phoneNumber; private String password; private String resetToken; private Date resetTokenExpiry; private boolean emailVerified; private String verificationToken; private Date verificationTokenExpiry; private Role role;
         public Builder id(long id){ this.id=id; return this; }
         public Builder firstName(String firstName){ this.firstName=firstName; return this; }
         public Builder lastName(String lastName){ this.lastName=lastName; return this; }
@@ -128,7 +147,10 @@ public class User implements UserDetails {
         public Builder password(String password){ this.password=password; return this; }
         public Builder resetToken(String resetToken){ this.resetToken=resetToken; return this; }
         public Builder resetTokenExpiry(Date resetTokenExpiry){ this.resetTokenExpiry=resetTokenExpiry; return this; }
+        public Builder emailVerified(boolean emailVerified){ this.emailVerified=emailVerified; return this; }
+        public Builder verificationToken(String verificationToken){ this.verificationToken=verificationToken; return this; }
+        public Builder verificationTokenExpiry(Date verificationTokenExpiry){ this.verificationTokenExpiry=verificationTokenExpiry; return this; }
         public Builder role(Role role){ this.role=role; return this; }
-        public User build(){ return new User(id, firstName, lastName, email, username, phoneNumber, password, resetToken, resetTokenExpiry, role); }
+        public User build(){ return new User(id, firstName, lastName, email, username, phoneNumber, password, resetToken, resetTokenExpiry, emailVerified, verificationToken, verificationTokenExpiry, role); }
     }
 }

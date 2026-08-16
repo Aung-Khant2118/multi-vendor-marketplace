@@ -23,6 +23,9 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long jwtExpiration;
 
+    @Value("${jwt.refresh-expiration:604800000}")
+    private long jwtRefreshExpiration;
+
     // in-memory blacklist for logged-out tokens (token -> expiration)
     private final ConcurrentMap<String, Date> blacklistedTokens = new ConcurrentHashMap<>();
 
@@ -44,10 +47,29 @@ public class JwtService {
                 .compact();
     }
 
+    // generate a longer-lived refresh token; the `type` claim distinguishes it
+    // from the access token so refresh tokens cannot be used as access tokens
+    public String generateRefreshToken(String email, String role) {
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("role", role)
+                .claim("type", "refresh")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + jwtRefreshExpiration))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     // extract email safely (returns null on invalid token)
     public String extractUsername(String token) {
         Claims claims = extractAllClaims(token);
         return claims == null ? null : claims.getSubject();
+    }
+
+    // extract role safely (returns null on invalid token)
+    public String extractRole(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims == null ? null : claims.get("role", String.class);
     }
 
     // read claims using jjwt 0.11+ parserBuilder API; return null on parse errors
@@ -77,6 +99,20 @@ public class JwtService {
         if (username == null) return false;
 
         return username.equals(email)
+                && !isTokenExpired(token)
+                && !isTokenBlacklisted(token);
+    }
+
+    // refresh tokens are only valid if they carry the `type=refresh` claim,
+    // belong to the subject, and have not expired or been blacklisted
+    public boolean isRefreshTokenValid(String token, String email) {
+        Claims claims = extractAllClaims(token);
+        if (claims == null) return false;
+
+        String type = claims.get("type", String.class);
+        if (!"refresh".equals(type)) return false;
+
+        return email != null && email.equals(claims.getSubject())
                 && !isTokenExpired(token)
                 && !isTokenBlacklisted(token);
     }

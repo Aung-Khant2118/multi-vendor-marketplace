@@ -26,6 +26,32 @@ public class Order {
     @Column(name = "billing_address_id")
     private Long billingAddressId;
 
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "recipientName", column = @Column(name = "shipping_recipient_name")),
+            @AttributeOverride(name = "phone", column = @Column(name = "shipping_phone")),
+            @AttributeOverride(name = "line1", column = @Column(name = "shipping_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "shipping_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "shipping_city")),
+            @AttributeOverride(name = "region", column = @Column(name = "shipping_region")),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "shipping_postal_code")),
+            @AttributeOverride(name = "country", column = @Column(name = "shipping_country"))
+    })
+    private AddressSnapshot shippingAddressSnapshot;
+
+    @Embedded
+    @AttributeOverrides({
+            @AttributeOverride(name = "recipientName", column = @Column(name = "billing_recipient_name")),
+            @AttributeOverride(name = "phone", column = @Column(name = "billing_phone")),
+            @AttributeOverride(name = "line1", column = @Column(name = "billing_line1")),
+            @AttributeOverride(name = "line2", column = @Column(name = "billing_line2")),
+            @AttributeOverride(name = "city", column = @Column(name = "billing_city")),
+            @AttributeOverride(name = "region", column = @Column(name = "billing_region")),
+            @AttributeOverride(name = "postalCode", column = @Column(name = "billing_postal_code")),
+            @AttributeOverride(name = "country", column = @Column(name = "billing_country"))
+    })
+    private AddressSnapshot billingAddressSnapshot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.PENDING;
@@ -66,6 +92,10 @@ public class Order {
     public void setShippingAddressId(Long shippingAddressId) { this.shippingAddressId = shippingAddressId; }
     public Long getBillingAddressId() { return billingAddressId; }
     public void setBillingAddressId(Long billingAddressId) { this.billingAddressId = billingAddressId; }
+    public AddressSnapshot getShippingAddressSnapshot() { return shippingAddressSnapshot; }
+    public void setShippingAddressSnapshot(AddressSnapshot shippingAddressSnapshot) { this.shippingAddressSnapshot = shippingAddressSnapshot; }
+    public AddressSnapshot getBillingAddressSnapshot() { return billingAddressSnapshot; }
+    public void setBillingAddressSnapshot(AddressSnapshot billingAddressSnapshot) { this.billingAddressSnapshot = billingAddressSnapshot; }
     public OrderStatus getStatus() { return status; }
     public void setStatus(OrderStatus status) { this.status = status; }
     public BigDecimal getSubtotal() { return subtotal; }
