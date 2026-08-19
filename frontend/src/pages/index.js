@@ -1,47 +1,101 @@
-import { useAuth } from '../features/auth/AuthContext';
-import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { customerAPI, categoryAPI } from '../services/api';
+import { FALLBACK_PRODUCTS, DEFAULT_CATEGORIES } from '../lib/catalog';
+import AppLayout from '../components/layout/AppLayout';
+import PromoBanner from '../components/marketplace/PromoBanner';
+import SectionPanel from '../components/marketplace/SectionPanel';
+import CategoryChip from '../components/marketplace/CategoryChip';
+import ProductCard from '../components/marketplace/ProductCard';
+
+const SORTS = ['Category', 'Price', 'Rating', 'Newest'];
 
 export default function Home() {
-  const { isAuthenticated, loading } = useAuth();
-  const router = useRouter();
+  const [products, setProducts] = useState(null);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [activeSort, setActiveSort] = useState('Price');
 
   useEffect(() => {
-    if (!loading) {
-      if (isAuthenticated) {
-        router.push('/dashboard');
-      } else {
-        router.push('/auth/login');
-      }
-    }
-  }, [isAuthenticated, loading, router]);
+    customerAPI
+      .getProducts()
+      .then((res) => setProducts(res.data?.data || []))
+      .catch(() => setProducts([]));
+
+    categoryAPI
+      .getCategories()
+      .then((res) => {
+        const data = res.data?.data || [];
+        if (data.length > 0) setCategories(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const catalog = useMemo(() => {
+    const list = products && products.length > 0 ? products : FALLBACK_PRODUCTS;
+    return list;
+  }, [products]);
+
+  const sorted = useMemo(() => {
+    const list = [...catalog];
+    if (activeSort === 'Price') list.sort((a, b) => Number(a.price) - Number(b.price));
+    if (activeSort === 'Newest') list.reverse();
+    return list;
+  }, [catalog, activeSort]);
+
+  const loading = products === null;
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
-      background: '#f3f4f6'
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ 
-          width: '48px', 
-          height: '48px', 
-          border: '4px solid #e5e7eb',
-          borderTop: '4px solid #4f46e5',
-          borderRadius: '50%',
-          margin: '0 auto',
-          animation: 'spin 1s linear infinite'
-        }} />
-        <p style={{ marginTop: '16px', color: '#6b7280' }}>Loading...</p>
-        <style jsx>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    </div>
+    <AppLayout>
+      <PromoBanner />
+
+      <SectionPanel
+        title="Recommended for you"
+        subtitle="Featured items from marketplace vendors"
+        linkHref="/recommended"
+        linkLabel="Browse more"
+      >
+        <div className="product-grid">
+          {!loading &&
+            catalog.slice(0, 4).map((p) => <ProductCard key={p.id} product={p} variant="recommended" />)}
+        </div>
+      </SectionPanel>
+
+      <SectionPanel
+        title="Shop by category"
+        subtitle=""
+        linkHref="/categories"
+        linkLabel="View all categories"
+      >
+        <div className="category-grid">
+          {categories.slice(0, 6).map((c) => (
+            <CategoryChip key={c.id} category={c} />
+          ))}
+        </div>
+      </SectionPanel>
+
+      <SectionPanel title="All marketplace items" subtitle={`${catalog.length} products available`}>
+        <div className="filter-pills" style={{ marginBottom: 18 }}>
+          {SORTS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={`filter-pill ${activeSort === s ? 'active' : ''}`}
+              onClick={() => setActiveSort(s)}
+            >
+              {s} ▾
+            </button>
+          ))}
+        </div>
+        {loading ? (
+          <p>Loading products…</p>
+        ) : (
+          <div className="product-grid">
+            {sorted.slice(0, 4).map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        )}
+        {!loading && sorted.length === 0 && <p>No products yet.</p>}
+      </SectionPanel>
+    </AppLayout>
   );
 }
