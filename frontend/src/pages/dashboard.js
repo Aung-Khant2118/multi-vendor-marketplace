@@ -1,122 +1,14 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Link from 'next/link';
-import { useAuth } from '../features/auth/AuthContext';
 
+// The marketplace home page is now the "Overview" / dashboard itself,
+// matching the sidebar's first nav item in the redesigned layout.
 export default function Dashboard() {
-  const { user, loading, isAuthenticated, isVendor, isAdmin, logout, fetchCurrentUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace('/auth/login');
-    }
-  }, [loading, isAuthenticated, router]);
+    router.replace('/');
+  }, [router]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCurrentUser();
-    }
-  }, [isAuthenticated]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  const roleLabel = isAdmin ? 'Administrator' : isVendor ? 'Vendor' : 'Customer';
-
-  return (
-    <div className="auth-container">
-      <div className="auth-card dashboard-card">
-        <h1 className="auth-title">ZayLink Dashboard</h1>
-
-        <div className="dashboard-section">
-          <h2 className="dashboard-subtitle">Account</h2>
-          <p>
-            <strong>Name:</strong> {user?.firstName} {user?.lastName}
-          </p>
-          <p>
-            <strong>Email:</strong> {user?.email}
-          </p>
-          <p>
-            <strong>Role:</strong> {user?.role || roleLabel}
-          </p>
-          {isVendor && (
-            <p>
-              <strong>Store status:</strong> {user?.vendorStatus || 'PENDING'}
-            </p>
-          )}
-        </div>
-
-        {isVendor && (
-          <div className="dashboard-section">
-            <h2 className="dashboard-subtitle">Vendor Tools</h2>
-            <ul>
-              <li>
-                <Link href="/vendor/products">My products</Link>
-              </li>
-              <li>
-                <Link href="/vendor/orders">Orders</Link>
-              </li>
-              <li>Dashboard stats (top-right)</li>
-            </ul>
-          </div>
-        )}
-
-        {isAdmin && (
-          <div className="dashboard-section">
-            <h2 className="dashboard-subtitle">Admin Tools</h2>
-            <ul>
-              <li>User management (coming soon)</li>
-              <li>Vendor approval (coming soon)</li>
-              <li>Category management (coming soon)</li>
-            </ul>
-          </div>
-        )}
-
-        {!isVendor && !isAdmin && (
-          <div className="dashboard-section">
-            <h2 className="dashboard-subtitle">Shop</h2>
-            <ul>
-              <li>
-                <Link href="/products">Browse products</Link>
-              </li>
-              <li>
-                <Link href="/cart">Cart</Link>
-              </li>
-              <li>
-                <Link href="/wishlist">Wishlist</Link>
-              </li>
-              <li>
-                <Link href="/orders">My orders</Link>
-              </li>
-            </ul>
-          </div>
-        )}
-
-        <div className="dashboard-section">
-          <button
-            className="btn-primary"
-            onClick={async () => {
-              await logout();
-              router.push('/auth/login');
-            }}
-          >
-            Log out
-          </button>
-        </div>
-      </div>
-
-      {/* Footer - OUTSIDE the card */}
-      <div className="auth-footer">
-        <p className="brand">ZayLink</p>
-        <p className="copyright">© 2026 ZayLink. All rights reserved.</p>
-        <div className="footer-links">
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">Cookie Policy</a>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }
