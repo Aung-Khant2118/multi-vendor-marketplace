@@ -7,10 +7,10 @@ export default function VendorRegisterPage() {
       <VendorRegisterForm />
 
       {/* Footer - OUTSIDE the card */}
-      <div className="register-footer">
+      <div className="auth-footer">
         <p className="brand">ZayLink</p>
-        <p className="copyright">© 2024 ZayLink. All rights reserved.</p>
-        <div>
+        <p className="copyright">© 2026 ZayLink. All rights reserved.</p>
+        <div className="footer-links">
           <a href="#">Privacy Policy</a>
           <a href="#">Terms of Service</a>
           <a href="#">Cookie Policy</a>

@@ -51,6 +51,10 @@ Stores all platform accounts.
 | phone | varchar | nullable |
 | role | user_role enum | required |
 | email_verified | boolean | default false |
+| verification_token | varchar | nullable, issued at registration |
+| verification_token_expiry | timestamp | nullable, 24h expiry |
+| reset_token | varchar | nullable, issued on forgot-password |
+| reset_token_expiry | timestamp | nullable, 1h expiry |
 | status | user_status enum | default active |
 | last_login_at | timestamp | nullable |
 | created_at | timestamp | required |
@@ -61,6 +65,7 @@ Stores all platform accounts.
 - One row represents one login account.
 - Vendor and admin accounts also live here.
 - `role` controls access.
+- `verification_token` / `reset_token` are single-use, time-limited codes; they are cleared once consumed.
 
 ---
 
@@ -87,6 +92,7 @@ Stores shipping and billing addresses for users.
 
 #### Notes
 - A user can have many addresses.
+- Enforced in `AddressService`: only one default address per user (setting one unsets the others).
 - Orders should snapshot the address used at checkout through foreign keys and stored order data.
 
 ---
@@ -375,6 +381,8 @@ Stores the order header.
 | user_id | uuid | FK -> `users.id` |
 | shipping_address_id | uuid | FK -> `addresses.id` |
 | billing_address_id | uuid | FK -> `addresses.id` |
+| shipping_recipient_name / shipping_phone / shipping_line1 / shipping_line2 / shipping_city / shipping_region / shipping_postal_code / shipping_country | varchar | address snapshot at checkout |
+| billing_recipient_name / billing_phone / billing_line1 / billing_line2 / billing_city / billing_region / billing_postal_code / billing_country | varchar | address snapshot at checkout |
 | status | order_status enum | PENDING / CONFIRMED / SHIPPED / DELIVERED / CANCELED / REFUNDED |
 | subtotal | decimal | required |
 | shipping_cost | decimal | required |
@@ -386,7 +394,8 @@ Stores the order header.
 
 #### Notes
 - One order belongs to one customer.
-- Address IDs point to the address selected at checkout.
+- Address IDs point to the address selected at checkout; the `shipping_*`/`billing_*` columns snapshot the address text so orders survive later address edits/deletes.
+- Orders can be cancelled by the customer while PENDING/CONFIRMED (restocks variants); completed payments are marked `REFUNDED`.
 
 ---
 

@@ -6,6 +6,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 const vendorRegisterSchema = yup.object().shape({
   firstName: yup.string().required('First name is required').min(2, 'Name must be at least 2 characters'),
@@ -26,6 +27,8 @@ export default function VendorRegisterForm() {
   const { registerVendor } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -109,24 +112,44 @@ export default function VendorRegisterForm() {
         {/* Password */}
         <div className="form-group">
           <label className="form-label">Password</label>
-          <input
-            type="password"
-            {...register('password')}
-            placeholder="••••••••••"
-            className={`form-input ${errors.password ? 'error' : ''}`}
-          />
+          <div className="password-input-wrapper">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              {...register('password')}
+              placeholder="••••••••••"
+              className={`form-input ${errors.password ? 'error' : ''}`}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((prev) => !prev)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
           {errors.password && <span className="form-error">{errors.password.message}</span>}
         </div>
 
         {/* Confirm Password */}
         <div className="form-group">
           <label className="form-label">Confirm Password</label>
-          <input
-            type="password"
-            {...register('confirmPassword')}
-            placeholder="••••••••••"
-            className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
-          />
+          <div className="password-input-wrapper">
+            <input
+              type={showConfirmPassword ? 'text' : 'password'}
+              {...register('confirmPassword')}
+              placeholder="••••••••••"
+              className={`form-input ${errors.confirmPassword ? 'error' : ''}`}
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+            >
+              {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
+          </div>
           {errors.confirmPassword && <span className="form-error">{errors.confirmPassword.message}</span>}
         </div>
 

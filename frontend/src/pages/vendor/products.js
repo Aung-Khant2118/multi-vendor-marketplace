@@ -139,9 +139,20 @@ export default function VendorProducts() {
           {products.map((p) => (
             <div key={p.id} className="info-row">
               <strong>{p.name}</strong> — ${p.price}{' '}
-              <button onClick={() => remove(p.id)}>Delete</button>
+              <button className="btn-outline" onClick={() => remove(p.id)}>Delete</button>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Footer - OUTSIDE the card */}
+      <div className="auth-footer">
+        <p className="brand">ZayLink</p>
+        <p className="copyright">© 2026 ZayLink. All rights reserved.</p>
+        <div className="footer-links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Cookie Policy</a>
         </div>
       </div>
     </div>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { toast } from 'react-toastify';
 import { customerAPI } from '../services/api';
 import { useAuth } from '../features/auth/AuthContext';
 
@@ -24,16 +23,6 @@ export default function Cart() {
     }
     load();
   }, [isAuthenticated]);
-
-  const checkout = async () => {
-    try {
-      const res = await customerAPI.checkout({});
-      toast.success(`Order #${res.data?.data?.id} placed`);
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Checkout failed');
-    }
-  };
 
   if (!isAuthenticated) return null;
 
@@ -58,11 +47,22 @@ export default function Cart() {
             <p style={{ fontWeight: 600 }}>
               Total ({cart?.totalQuantity} items): ${cart?.totalPrice}
             </p>
-            <button className="btn-primary" onClick={checkout}>
-              Checkout
-            </button>
+            <Link href="/checkout" className="btn-primary" style={{ display: 'inline-block' }}>
+              Proceed to checkout
+            </Link>
           </>
         )}
+      </div>
+
+      {/* Footer - OUTSIDE the card */}
+      <div className="auth-footer">
+        <p className="brand">ZayLink</p>
+        <p className="copyright">© 2026 ZayLink. All rights reserved.</p>
+        <div className="footer-links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Cookie Policy</a>
+        </div>
       </div>
     </div>
   );

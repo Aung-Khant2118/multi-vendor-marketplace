@@ -7,13 +7,13 @@ export default function LoginPage() {
       <LoginForm />
 
       {/* Footer - OUTSIDE the card */}
-      <div className="login-footer">
-        <p>© 2026 ZayLink Multi-Vendor E-commerce. All rights reserved.</p>
-        <div>
+      <div className="auth-footer">
+        <p className="brand">ZayLink</p>
+        <p className="copyright">© 2026 ZayLink. All rights reserved.</p>
+        <div className="footer-links">
           <a href="#">Privacy Policy</a>
           <a href="#">Terms of Service</a>
           <a href="#">Cookie Policy</a>
-          <a href="#">Sustainability</a>
         </div>
       </div>
     </div>

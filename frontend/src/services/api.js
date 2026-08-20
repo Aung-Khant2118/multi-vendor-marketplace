@@ -80,6 +80,21 @@ export const userAPI = {
   updateProfile: (data) => apiClient.patch('/users/me', data),
 };
 
+// ===== ADDRESS API ENDPOINTS =====
+export const addressAPI = {
+  // List current user's addresses
+  getAddresses: () => apiClient.get('/addresses'),
+
+  // Create a new address
+  createAddress: (data) => apiClient.post('/addresses', data),
+
+  // Update an address (partial)
+  updateAddress: (id, data) => apiClient.patch(`/addresses/${id}`, data),
+
+  // Delete an address
+  deleteAddress: (id) => apiClient.delete(`/addresses/${id}`),
+};
+
 // ===== VENDOR API ENDPOINTS =====
 export const vendorAPI = {
   // Get vendor dashboard
@@ -103,6 +118,18 @@ export const vendorAPI = {
   // Update order status
   updateOrderStatus: (id, status) => 
     apiClient.put(`/vendor/orders/${id}`, { status }),
+};
+
+// ===== WISHLIST API ENDPOINTS =====
+export const wishlistAPI = {
+  // Get current user's wishlist
+  getWishlist: () => apiClient.get('/wishlist'),
+
+  // Add a product to the wishlist (backend expects { productId })
+  addItem: (productId) => apiClient.post('/wishlist/items', { productId }),
+
+  // Remove a wishlist item by its item id
+  removeItem: (itemId) => apiClient.delete(`/wishlist/items/${itemId}`),
 };
 
 // ===== CATEGORY API ENDPOINTS =====
@@ -135,4 +162,7 @@ export const customerAPI = {
   
   // Get order by id
   getOrder: (id) => apiClient.get(`/orders/${id}`),
+
+  // Cancel an order
+  cancelOrder: (id) => apiClient.post(`/orders/${id}/cancel`),
 };
