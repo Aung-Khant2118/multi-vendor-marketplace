@@ -22,10 +22,12 @@ export default function Topbar({ onOpenMobileMenu }) {
   const mounted = useHasMounted();
   const isAuthenticated = mounted && authState;
   const isVendor = mounted && vendorState;
+  const onVendorPages = router.pathname.startsWith('/vendor');
 
   const submitSearch = (e) => {
     e.preventDefault();
-    router.push(query ? `/products?q=${encodeURIComponent(query)}` : '/products');
+    const base = onVendorPages ? '/vendor/products' : '/products';
+    router.push(query ? `${base}?q=${encodeURIComponent(query)}` : base);
   };
 
   const handleLogout = async () => {
@@ -63,8 +65,12 @@ export default function Topbar({ onOpenMobileMenu }) {
           </>
         ) : (
           <>
-            {isVendor ? (
-              <Link href="/vendor/products" className="btn-pill btn-pill-yellow">
+            {onVendorPages ? (
+              <Link href="/" className="btn-pill btn-pill-yellow">
+                Switch to Customer
+              </Link>
+            ) : isVendor ? (
+              <Link href="/vendor/dashboard" className="btn-pill btn-pill-yellow">
                 Switch to Vendor
               </Link>
             ) : (
