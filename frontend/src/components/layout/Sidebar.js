@@ -26,7 +26,7 @@ const CUSTOMER_NAV = [
   { href: '/orders', label: 'Orders', icon: FiPackage },
   { href: '/wishlist', label: 'Wishlist', icon: FiHeart },
   { href: '/addresses', label: 'Addresses', icon: FiMapPin },
-  { href: '/profile', label: 'Profile settings', icon: FiSettings },
+  { href: '/settings', label: 'Settings', icon: FiSettings },
   { href: '/cart', label: 'Cart', icon: FiShoppingCart },
 ];
 
