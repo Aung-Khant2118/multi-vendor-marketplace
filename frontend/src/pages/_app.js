@@ -2,6 +2,7 @@ import { Inter } from 'next/font/google';
 import { AuthProvider } from '../features/auth/AuthContext';
 import { WishlistProvider } from '../features/wishlist/WishlistContext';
 import '../styles/globals.css';
+import '../styles/admin.css';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
