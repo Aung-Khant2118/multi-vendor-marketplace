@@ -5,6 +5,8 @@ import com.group5.marketplace.product.entity.ProductImage;
 import com.group5.marketplace.product.repository.ProductImageRepository;
 import com.group5.marketplace.product.repository.ProductRepository;
 import com.group5.marketplace.storage.supabase.SupabaseStorageClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,6 +16,8 @@ import java.io.IOException;
 
 @Service
 public class ProductImageService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProductImageService.class);
 
     private final ProductRepository productRepository;
     private final ProductImageRepository imageRepository;
@@ -61,8 +65,11 @@ public class ProductImageService {
 
         try {
             storageClient.deleteFile(img.getUrl());
-        } catch (IOException | InterruptedException e) {
-            // log and continue with metadata deletion
+        } catch (IOException e) {
+            log.warn("Failed to delete image file from storage for image {}: {}", imageId, e.getMessage());
+        } catch (InterruptedException e) {
+            log.warn("Interrupted while deleting image file for image {}", imageId);
+            Thread.currentThread().interrupt();
         }
 
         imageRepository.delete(img);

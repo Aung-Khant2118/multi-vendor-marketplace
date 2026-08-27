@@ -1,18 +1,33 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import VendorSidebar from './VendorSidebar';
 import Topbar from '../layout/Topbar';
 import VendorFooter from './VendorFooter';
 
+const STORAGE_KEY = 'vendor-sidebar-expanded';
+
+const readExpanded = () => {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(STORAGE_KEY) === 'true';
+};
+
 export default function VendorLayout({ children }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(readExpanded);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const toggleExpand = useCallback(() => {
+    setExpanded((v) => {
+      const next = !v;
+      localStorage.setItem(STORAGE_KEY, String(next));
+      return next;
+    });
+  }, []);
 
   return (
     <div className="vendor-shell">
       <VendorSidebar
         expanded={expanded}
         mobileOpen={mobileOpen}
-        onToggleExpand={() => setExpanded((v) => !v)}
+        onToggleExpand={toggleExpand}
         onCloseMobile={() => setMobileOpen(false)}
       />
       <div className="vendor-main">

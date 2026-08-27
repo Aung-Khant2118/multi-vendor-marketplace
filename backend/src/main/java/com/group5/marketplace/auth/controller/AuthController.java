@@ -75,4 +75,15 @@ public class AuthController {
         }
         return "Logged out";
     }
+
+    @PostMapping("/refresh-role")
+    public LoginResponse refreshRole(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+        }
+        String token = authHeader.substring(7);
+        return authService.refreshRole(token);
+    }
 }

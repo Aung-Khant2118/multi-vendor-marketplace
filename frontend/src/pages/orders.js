@@ -3,28 +3,32 @@ import { useRouter } from 'next/router';
 import { FiPackage } from 'react-icons/fi';
 import { customerAPI } from '../services/api';
 import { useAuth } from '../features/auth/AuthContext';
+import { useHasMounted } from '../lib/useHasMounted';
 import AppLayout from '../components/layout/AppLayout';
+import GuestGuard from '../components/Auth/GuestGuard';
 
 export default function Orders() {
   const { isAuthenticated, loading } = useAuth();
+  const mounted = useHasMounted();
   const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace('/auth/login');
-      return;
-    }
+    if (!mounted) return;
+    if (!loading && !isAuthenticated) return;
     if (isAuthenticated) {
       customerAPI
         .getOrders()
         .then((res) => setOrders(res.data?.data || []))
         .catch((err) => setError(err.response?.data?.message || 'Failed to load orders'));
     }
-  }, [loading, isAuthenticated]);
+  }, [mounted, loading, isAuthenticated]);
 
-  if (!isAuthenticated) return null;
+  if (!mounted) return null;
+  if (!loading && !isAuthenticated) {
+    return <GuestGuard message="Log in to view your order history." />;
+  }
 
   return (
     <AppLayout>
@@ -53,11 +57,11 @@ export default function Orders() {
             <ul style={{ listStyle: 'none', margin: '8px 0 0' }}>
               {o.items.map((it) => (
                 <li key={it.id} style={{ padding: '4px 0', fontSize: 14, color: 'var(--text-secondary)' }}>
-                  {it.productName} x {it.quantity} (${it.subtotal})
+                  {it.productName} x {it.quantity} (MMK {it.subtotal})
                 </li>
               ))}
             </ul>
-            <div className="pcard-price" style={{ marginTop: 10 }}>${o.total}</div>
+            <div className="pcard-price" style={{ marginTop: 10 }}>MMK {o.total}</div>
           </div>
         ))
       )}

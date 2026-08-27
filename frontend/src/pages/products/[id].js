@@ -39,7 +39,6 @@ export default function ProductDetail() {
   const addToCart = async () => {
     if (!isAuthenticated) {
       toast.info('Please log in to add items to your cart');
-      router.push('/auth/login');
       return;
     }
     if (!selectedVariant) {
@@ -106,7 +105,7 @@ export default function ProductDetail() {
             </div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>{p.description}</p>
             <div className="pcard-price" style={{ fontSize: 26, marginBottom: 20 }}>
-              ${Number(p.price).toFixed(2)}
+              MMK {Number(p.price).toFixed(2)}
             </div>
 
             <div className="form-group">
@@ -119,7 +118,7 @@ export default function ProductDetail() {
                 {!variants.length && <option value="">No variants</option>}
                 {variants.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.sku || `Variant #${v.id}`} — ${v.price} (stock: {v.stock})
+                    {v.sku || `Variant #${v.id}`} — MMK {v.price} (stock: {v.stock})
                   </option>
                 ))}
               </select>

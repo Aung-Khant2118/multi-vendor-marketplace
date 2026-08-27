@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useRouter } from 'next/router';
 import { toast } from 'react-toastify';
 import { customerAPI } from '../services/api';
 import { useAuth } from '../features/auth/AuthContext';
@@ -11,13 +10,11 @@ import { useAuth } from '../features/auth/AuthContext';
 // specific variant instead).
 export function useQuickAddToCart() {
   const { isAuthenticated } = useAuth();
-  const router = useRouter();
   const [loadingId, setLoadingId] = useState(null);
 
   const addToCart = async (product) => {
     if (!isAuthenticated) {
       toast.info('Please log in to add items to your cart');
-      router.push('/auth/login');
       return;
     }
     if (product.id < 0) {

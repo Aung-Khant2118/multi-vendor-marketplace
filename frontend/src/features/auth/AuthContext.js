@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { authAPI } from '../../services/api';
 
@@ -26,6 +26,52 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => decodeToken(getStoredToken()));
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState(() => getStoredToken());
+
+  // On mount, sync the JWT role with the backend's current role.
+  // This handles cases like a customer upgrading to vendor without re-logging in.
+  useEffect(() => {
+    const storedToken = getStoredToken();
+    if (!storedToken) return;
+
+    const syncRole = async () => {
+      try {
+        const meResponse = await authAPI.getCurrentUser();
+        const meData = meResponse.data?.data || meResponse.data || null;
+        if (!meData?.role) return;
+
+        const jwtRole = decodeToken(storedToken)?.role;
+        if (meData.role !== jwtRole) {
+          // Role changed (e.g. CUSTOMER → VENDOR) — get a fresh JWT
+          const refreshResponse = await authAPI.refreshRole();
+          const newToken = refreshResponse.data?.token || null;
+          if (newToken) {
+            localStorage.setItem('token', newToken);
+            setToken(newToken);
+            setUser(decodeToken(newToken));
+          }
+        } else {
+          // Role unchanged — just enrich user state with backend data
+          setUser({
+            id: meData.id,
+            firstName: meData.firstName,
+            lastName: meData.lastName,
+            email: meData.email,
+            role: meData.role,
+            vendorStatus: meData.vendorStatus || null,
+          });
+        }
+      } catch (error) {
+        // On 401, don't clear token here — the interceptor handles it.
+        // For other errors, keep the existing token/user state intact.
+        if (error.response?.status !== 401) {
+          // Non-auth error: keep existing session, just log it
+          console.error('Auth sync error:', error.message);
+        }
+      }
+    };
+
+    syncRole();
+  }, []);
 
   // Fetch current user profile from the backend (/auth/me)
   const fetchCurrentUser = async () => {

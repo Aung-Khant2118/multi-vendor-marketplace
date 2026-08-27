@@ -40,12 +40,16 @@ function enrichInventory(product) {
     .join('')
     .toUpperCase()
     .slice(0, 4);
+  const image =
+    (product.images && product.images.length > 0 && product.images[0]) ||
+    null;
   return {
     ...product,
     displayStock: stock,
     displayActive: active,
     displayLowStock: lowStock,
     displaySku: `${skuBase || 'SKU'}-${100 + (seed % 900)}`,
+    displayImage: image,
   };
 }
 

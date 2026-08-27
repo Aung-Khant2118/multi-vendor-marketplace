@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { HiSparkles } from 'react-icons/hi2';
 import { FiChevronDown } from 'react-icons/fi';
 import { customerAPI } from '../services/api';
-import { FALLBACK_PRODUCTS } from '../lib/catalog';
 import AppLayout from '../components/layout/AppLayout';
 import ProductCard from '../components/marketplace/ProductCard';
 
@@ -18,14 +17,11 @@ export default function Recommended() {
     customerAPI
       .getProducts()
       .then((res) => setProducts(res.data?.data || []))
-      .catch(() => setProducts([]));
+      .catch((err) => { console.error('Failed to load products:', err); setProducts([]); });
   }, []);
 
   const catalog = useMemo(() => {
-    const list = products && products.length > 0 ? products : FALLBACK_PRODUCTS;
-    // The backend has no personalization signal, so tabs re-order the
-    // same fetched catalog deterministically to feel distinct rather
-    // than fabricating separate "trending"/"recent views" datasets.
+    const list = products || [];
     const copy = [...list];
     if (tab === 'Trending') copy.sort((a, b) => Number(b.id) - Number(a.id));
     if (tab === 'Based on recent views') copy.reverse();

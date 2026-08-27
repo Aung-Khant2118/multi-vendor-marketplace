@@ -40,6 +40,12 @@ public class Vendor {
     @Column(name = "business_phone")
     private String businessPhone;
 
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Column(name = "banner_url")
+    private String bannerUrl;
+
     private BigDecimal rating;
 
     @Enumerated(EnumType.STRING)
@@ -95,6 +101,10 @@ public class Vendor {
     public void setBusinessEmail(String businessEmail) { this.businessEmail = businessEmail; }
     public String getBusinessPhone() { return businessPhone; }
     public void setBusinessPhone(String businessPhone) { this.businessPhone = businessPhone; }
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+    public String getBannerUrl() { return bannerUrl; }
+    public void setBannerUrl(String bannerUrl) { this.bannerUrl = bannerUrl; }
     public BigDecimal getRating() { return rating; }
     public void setRating(BigDecimal rating) { this.rating = rating; }
     public VendorStatus getStatus() { return status; }

@@ -1,5 +1,7 @@
 package com.group5.marketplace.common;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class MailService {
+
+    private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final String fromAddress;
@@ -46,9 +50,7 @@ public class MailService {
     private void send(String to, String subject, String body) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
-            System.out.println("[MailService] SMTP not configured - logging message for " + to
-                    + "\n  Subject: " + subject
-                    + "\n  Body:\n" + body);
+            log.warn("[MailService] SMTP not configured - logging message for {}\n  Subject: {}\n  Body:\n{}", to, subject, body);
             return;
         }
 
@@ -57,6 +59,10 @@ public class MailService {
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);
-        mailSender.send(message);
+        try {
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.error("[MailService] Failed to send email to {} with subject '{}': {}", to, subject, e.getMessage(), e);
+        }
     }
 }

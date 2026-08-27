@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { FiHeart } from 'react-icons/fi';
 import { customerAPI } from '../services/api';
-import { FALLBACK_PRODUCTS } from '../lib/catalog';
 import { useWishlist } from '../features/wishlist/WishlistContext';
+import { useAuth } from '../features/auth/AuthContext';
 import { useQuickAddToCart } from '../lib/useQuickAddToCart';
 import AppLayout from '../components/layout/AppLayout';
 import ProductCard from '../components/marketplace/ProductCard';
 
 export default function Wishlist() {
   const { ids } = useWishlist();
+  const { isAuthenticated } = useAuth();
   const [products, setProducts] = useState(null);
   const { addToCart, loadingId } = useQuickAddToCart();
 
@@ -16,11 +18,11 @@ export default function Wishlist() {
     customerAPI
       .getProducts()
       .then((res) => setProducts(res.data?.data || []))
-      .catch(() => setProducts([]));
+      .catch((err) => { console.error('Failed to load products:', err); setProducts([]); });
   }, []);
 
   const items = useMemo(() => {
-    const catalog = products && products.length > 0 ? products : FALLBACK_PRODUCTS;
+    const catalog = products || [];
     return catalog.filter((p) => ids.includes(p.id));
   }, [products, ids]);
 
@@ -31,9 +33,18 @@ export default function Wishlist() {
       <div className="page-heading">
         <div>
           <h1>Wishlist</h1>
-          <p>Items you have saved for later, stored on this device</p>
+          <p>Items you have saved for later</p>
         </div>
       </div>
+
+      {!isAuthenticated && (
+        <div className="content-card" style={{ marginBottom: 16, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <FiHeart size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: 14 }}>
+            <Link href="/auth/login" style={{ fontWeight: 600 }}>Log in</Link> to sync your wishlist across devices.
+          </p>
+        </div>
+      )}
 
       {loading ? (
         <p>Loading…</p>

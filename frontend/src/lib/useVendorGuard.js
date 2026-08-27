@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../features/auth/AuthContext';
 import { useHasMounted } from './useHasMounted';
@@ -21,14 +21,20 @@ export function useVendorGuard() {
   const mounted = useHasMounted();
   const isAuthenticated = mounted && authState;
   const isVendor = mounted && vendorState;
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
     if (!mounted) return;
+    // Only redirect once to avoid flicker during rapid navigation
+    if (hasRedirected.current) return;
+    
     if (!isAuthenticated) {
+      hasRedirected.current = true;
       router.replace('/auth/login');
       return;
     }
     if (!isVendor) {
+      hasRedirected.current = true;
       router.replace('/');
     }
   }, [mounted, isAuthenticated, isVendor, router]);

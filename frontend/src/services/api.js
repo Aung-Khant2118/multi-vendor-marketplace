@@ -39,8 +39,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/auth/login';
+      // Don't redirect during initial auth sync or for auth endpoints themselves
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/auth/');
+      
+      // Only clear token and redirect for non-auth API calls
+      // The auth sync in AuthContext handles its own errors
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('token');
+        window.location.href = '/auth/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -65,6 +73,9 @@ export const authAPI = {
   
   // Verify email
   verifyEmail: (token) => apiClient.get(`/auth/verify/${token}`),
+  
+  // Refresh the JWT with the user's current role from the database
+  refreshRole: () => apiClient.post('/auth/refresh-role'),
   
   // Forgot password
   forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
@@ -117,7 +128,7 @@ export const vendorAPI = {
   
   // Update order status
   updateOrderStatus: (id, status) => 
-    apiClient.put(`/vendor/orders/${id}`, { status }),
+    apiClient.put(`/vendor/orders/${id}`, { status: typeof status === 'string' ? status : status?.status }),
 };
 
 // ===== WISHLIST API ENDPOINTS =====

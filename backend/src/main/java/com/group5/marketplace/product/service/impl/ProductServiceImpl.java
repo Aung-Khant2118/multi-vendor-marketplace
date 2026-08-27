@@ -11,10 +11,16 @@ import com.group5.marketplace.product.mapper.ProductMapper;
 import com.group5.marketplace.product.repository.ProductRepository;
 import com.group5.marketplace.product.repository.ProductImageRepository;
 import com.group5.marketplace.product.service.ProductService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -59,27 +65,62 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ProductResponse> getAll() {
         return productRepository.findAll().stream().map(productMapper::toResponse).collect(Collectors.toList());
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ProductResponse getBySlug(String slug) {
         Product p = productRepository.findBySlug(slug).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
         return productMapper.toResponse(p);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ProductResponse getById(Long id) {
         Product p = productRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
         return productMapper.toResponse(p);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ProductResponse> getAllByVendor(Long vendorId) {
         return productRepository.findByVendorId(vendorId).stream()
                 .map(productMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponse> search(String q, Long categoryId, BigDecimal priceMin,
+                                        BigDecimal priceMax, String sort, int page, int size) {
+        Pageable pageable;
+        if (sort != null && !sort.isBlank()) {
+            switch (sort) {
+                case "price_asc":
+                    pageable = PageRequest.of(page, size, Sort.by("price").ascending());
+                    break;
+                case "price_desc":
+                    pageable = PageRequest.of(page, size, Sort.by("price").descending());
+                    break;
+                case "name":
+                    pageable = PageRequest.of(page, size, Sort.by("name").ascending());
+                    break;
+                case "oldest":
+                    pageable = PageRequest.of(page, size, Sort.by("createdAt").ascending());
+                    break;
+                default:
+                    pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+                    break;
+            }
+        } else {
+            pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        }
+
+        return productRepository.search(q != null ? q : "", categoryId, priceMin, priceMax, null, pageable)
+                .map(productMapper::toResponse);
     }
 
     @Override

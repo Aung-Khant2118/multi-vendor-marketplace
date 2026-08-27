@@ -3,55 +3,75 @@ import { useRouter } from 'next/router';
 import { toast } from 'react-toastify';
 import { FiMapPin, FiTrash2, FiPlus } from 'react-icons/fi';
 import { useAuth } from '../features/auth/AuthContext';
+import { addressAPI } from '../services/api';
 import AppLayout from '../components/layout/AppLayout';
+import GuestGuard from '../components/Auth/GuestGuard';
 
-const EMPTY_FORM = { label: '', line1: '', city: '', postalCode: '', phone: '' };
+const EMPTY_FORM = {
+  recipientName: '',
+  phone: '',
+  line1: '',
+  line2: '',
+  city: '',
+  region: '',
+  postalCode: '',
+  country: '',
+  addressType: 'SHIPPING',
+};
 
-// There is no address API on the backend, so this is a local-only
-// (localStorage) address book, scoped per signed-in email.
 export default function Addresses() {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const storageKey = user?.email ? `zaylink_addresses_${user.email}` : null;
-
-  const [addresses, setAddresses] = useState(() => {
-    if (typeof window === 'undefined' || !storageKey) return [];
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [addresses, setAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace('/auth/login');
-    }
-  }, [loading, isAuthenticated, router]);
+    if (!isAuthenticated) return;
+    setAddressesLoading(true);
+    addressAPI
+      .getAddresses()
+      .then((res) => setAddresses(res.data?.data || []))
+      .catch(() => setAddresses([]))
+      .finally(() => setAddressesLoading(false));
+  }, [isAuthenticated]);
 
-  const persist = (next) => {
-    setAddresses(next);
-    if (storageKey) window.localStorage.setItem(storageKey, JSON.stringify(next));
-  };
-
-  const addAddress = (e) => {
+  const addAddress = async (e) => {
     e.preventDefault();
-    if (!form.label || !form.line1 || !form.city) {
-      toast.error('Label, address line and city are required');
+    if (!form.recipientName || !form.line1 || !form.city || !form.country) {
+      toast.error('Name, address line, city and country are required');
       return;
     }
-    persist([...addresses, { ...form, id: Date.now() }]);
-    setForm(EMPTY_FORM);
-    toast.success('Address saved');
+    setSubmitting(true);
+    try {
+      const res = await addressAPI.createAddress(form);
+      const newAddress = res.data?.data;
+      if (newAddress) {
+        setAddresses((prev) => [...prev, newAddress]);
+      }
+      setForm(EMPTY_FORM);
+      toast.success('Address saved');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save address');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const removeAddress = (id) => {
-    persist(addresses.filter((a) => a.id !== id));
+  const removeAddress = async (id) => {
+    try {
+      await addressAPI.deleteAddress(id);
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
+      toast.success('Address deleted');
+    } catch {
+      toast.error('Failed to delete address');
+    }
   };
 
-  if (!isAuthenticated) return null;
+  if (!loading && !isAuthenticated) {
+    return <GuestGuard message="Log in to manage your saved addresses." />;
+  }
 
   return (
     <AppLayout>
@@ -66,21 +86,39 @@ export default function Addresses() {
         <h2 className="dashboard-subtitle">Add a new address</h2>
         <form onSubmit={addAddress}>
           <div className="form-group">
-            <label className="form-label">Label</label>
+            <label className="form-label">Recipient Name</label>
             <input
               className="form-input"
-              placeholder="Home, Office…"
-              value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })}
+              placeholder="John Doe"
+              value={form.recipientName}
+              onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Address line</label>
+            <label className="form-label">Phone</label>
+            <input
+              className="form-input"
+              placeholder="+1 234 567 890"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Address line 1</label>
             <input
               className="form-input"
               placeholder="123 Commerce St"
               value={form.line1}
               onChange={(e) => setForm({ ...form, line1: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Address line 2</label>
+            <input
+              className="form-input"
+              placeholder="Apt 4B (optional)"
+              value={form.line2}
+              onChange={(e) => setForm({ ...form, line2: e.target.value })}
             />
           </div>
           <div className="form-group">
@@ -92,6 +130,14 @@ export default function Addresses() {
             />
           </div>
           <div className="form-group">
+            <label className="form-label">Region / State</label>
+            <input
+              className="form-input"
+              value={form.region}
+              onChange={(e) => setForm({ ...form, region: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
             <label className="form-label">Postal code</label>
             <input
               className="form-input"
@@ -100,20 +146,23 @@ export default function Addresses() {
             />
           </div>
           <div className="form-group">
-            <label className="form-label">Phone</label>
+            <label className="form-label">Country</label>
             <input
               className="form-input"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="US"
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
             />
           </div>
-          <button type="submit" className="btn-pill btn-pill-yellow">
-            <FiPlus /> Save address
+          <button type="submit" className="btn-pill btn-pill-yellow" disabled={submitting}>
+            <FiPlus /> {submitting ? 'Saving...' : 'Save address'}
           </button>
         </form>
       </div>
 
-      {addresses.length === 0 ? (
+      {addressesLoading ? (
+        <p>Loading addresses...</p>
+      ) : addresses.length === 0 ? (
         <div className="empty-state">
           <FiMapPin size={32} />
           <div className="empty-state-title">No saved addresses</div>
@@ -123,9 +172,9 @@ export default function Addresses() {
         addresses.map((a) => (
           <div key={a.id} className="content-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <strong>{a.label}</strong>
+              <strong>{a.recipientName}</strong>
               <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-                {a.line1}, {a.city} {a.postalCode}
+                {a.line1}{a.line2 ? `, ${a.line2}` : ''}, {a.city} {a.postalCode}
                 {a.phone ? ` · ${a.phone}` : ''}
               </p>
             </div>

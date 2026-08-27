@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { FiHeart, FiStar, FiCheckCircle, FiHome as FiStoreIcon, FiShoppingCart, FiArrowRight } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 import { enrichProduct } from '../../lib/catalog';
 import { useWishlist } from '../../features/wishlist/WishlistContext';
+import { useAuth } from '../../features/auth/AuthContext';
 
 /**
  * variant "recommended": image overlay heart + star rating (Frame 05 style)
@@ -10,6 +12,7 @@ import { useWishlist } from '../../features/wishlist/WishlistContext';
  */
 export default function ProductCard({ product, variant = 'grid', onAddToCart, addToCartLoading }) {
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { isAuthenticated } = useAuth();
   const p = enrichProduct(product);
   const wishlisted = isWishlisted(p.id);
   const price = Number(p.price || 0).toFixed(2);
@@ -17,12 +20,20 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart, ad
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.info('Please log in to add items to your wishlist');
+      return;
+    }
     toggleWishlist(p.id);
   };
 
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.info('Please log in to add items to your cart');
+      return;
+    }
     onAddToCart?.(p);
   };
 
@@ -62,14 +73,14 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart, ad
 
         {variant === 'category' ? (
           <div className="pcard-bottom">
-            <span className="pcard-price">${price}</span>
+            <span className="pcard-price">MMK {price}</span>
             <span className="pcard-visit">
               Visit Store <FiArrowRight size={12} />
             </span>
           </div>
         ) : (
           <div className="pcard-bottom">
-            <span className="pcard-price">${price}</span>
+            <span className="pcard-price">MMK {price}</span>
             {variant === 'recommended' && (
               <span className="pcard-rating">
                 <FiStar /> {p.displayRating} ({p.displayReviewCount})

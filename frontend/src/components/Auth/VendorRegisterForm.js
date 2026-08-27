@@ -6,12 +6,12 @@ import { useAuth } from '../../features/auth/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
 
 const vendorRegisterSchema = yup.object().shape({
   firstName: yup.string().required('First name is required').min(2, 'Name must be at least 2 characters'),
   lastName: yup.string().required('Last name is required').min(2, 'Name must be at least 2 characters'),
-  email: yup.string().email('Invalid email').required('Email is required'),
+  email: yup.string().email('Please enter a valid email address').required('Email is required'),
   password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
   confirmPassword: yup
     .string()
@@ -29,6 +29,7 @@ export default function VendorRegisterForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [serverError, setServerError] = useState('');
 
   const {
     register,
@@ -42,6 +43,7 @@ export default function VendorRegisterForm() {
   });
 
   const onSubmit = async (data) => {
+    setServerError('');
     setLoading(true);
 
     const vendorData = {
@@ -61,19 +63,34 @@ export default function VendorRegisterForm() {
       toast.success('Vendor registration successful! Please log in.');
       router.push('/auth/login');
     } else {
-      const statusText = result.status ? ` (code: ${result.status})` : '';
-      toast.error((result.error || 'Vendor registration failed. Please try again.') + statusText);
-      console.error('Vendor registration error response:', result.raw || result);
+      const message = result.error || 'Vendor registration failed. Please try again.';
+      setServerError(message);
+      toast.error(message);
     }
   };
+
+  const hasErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="auth-card">
       <h2 className="auth-title">Create Vendor Account</h2>
       <p className="auth-subtitle">Join ZayLink to start selling.</p>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        {/* First Name */}
+      {serverError && (
+        <div className="auth-error-banner">
+          <FiAlertCircle />
+          <span>{serverError}</span>
+        </div>
+      )}
+
+      {hasErrors && (
+        <div className="auth-warning-banner">
+          <FiAlertCircle />
+          <span>Please fix {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} below</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="form-group">
           <label className="form-label">First Name</label>
           <input
@@ -85,7 +102,6 @@ export default function VendorRegisterForm() {
           {errors.firstName && <span className="form-error">{errors.firstName.message}</span>}
         </div>
 
-        {/* Last Name */}
         <div className="form-group">
           <label className="form-label">Last Name</label>
           <input
@@ -97,7 +113,6 @@ export default function VendorRegisterForm() {
           {errors.lastName && <span className="form-error">{errors.lastName.message}</span>}
         </div>
 
-        {/* Email */}
         <div className="form-group">
           <label className="form-label">Email</label>
           <input
@@ -109,7 +124,6 @@ export default function VendorRegisterForm() {
           {errors.email && <span className="form-error">{errors.email.message}</span>}
         </div>
 
-        {/* Password */}
         <div className="form-group">
           <label className="form-label">Password</label>
           <div className="password-input-wrapper">
@@ -131,7 +145,6 @@ export default function VendorRegisterForm() {
           {errors.password && <span className="form-error">{errors.password.message}</span>}
         </div>
 
-        {/* Confirm Password */}
         <div className="form-group">
           <label className="form-label">Confirm Password</label>
           <div className="password-input-wrapper">
@@ -153,11 +166,9 @@ export default function VendorRegisterForm() {
           {errors.confirmPassword && <span className="form-error">{errors.confirmPassword.message}</span>}
         </div>
 
-        {/* ===== STORE DETAILS ===== */}
         <div className="store-details-section">
           <h3>Store Details</h3>
 
-          {/* Store Name */}
           <div className="form-group">
             <label className="form-label">Store Name</label>
             <input
@@ -169,7 +180,6 @@ export default function VendorRegisterForm() {
             {errors.storeName && <span className="form-error">{errors.storeName.message}</span>}
           </div>
 
-          {/* Business Address */}
           <div className="form-group">
             <label className="form-label">Business Address</label>
             <input
@@ -181,7 +191,6 @@ export default function VendorRegisterForm() {
             {errors.businessAddress && <span className="form-error">{errors.businessAddress.message}</span>}
           </div>
 
-          {/* Store Description */}
           <div className="form-group">
             <label className="form-label">Store Description</label>
             <textarea
@@ -194,7 +203,6 @@ export default function VendorRegisterForm() {
           </div>
         </div>
 
-        {/* Terms and Conditions */}
         <div className="checkbox-group">
           <div className="checkbox-left">
             <input
@@ -207,7 +215,6 @@ export default function VendorRegisterForm() {
         </div>
         {errors.agreeTerms && <span className="form-error">{errors.agreeTerms.message}</span>}
 
-        {/* Register Button */}
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading ? 'Creating account...' : 'REGISTER ACCOUNT'}
         </button>

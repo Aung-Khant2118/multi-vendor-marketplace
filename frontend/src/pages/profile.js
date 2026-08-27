@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { userAPI } from '../services/api';
 import { useAuth } from '../features/auth/AuthContext';
 import AppLayout from '../components/layout/AppLayout';
+import GuestGuard from '../components/Auth/GuestGuard';
 
 export default function Profile() {
   const { isAuthenticated, loading, user, fetchCurrentUser } = useAuth();
@@ -11,12 +12,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const firstNameRef = useRef(null);
   const lastNameRef = useRef(null);
-
-  useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace('/auth/login');
-    }
-  }, [loading, isAuthenticated, router]);
 
   useEffect(() => {
     if (isAuthenticated) fetchCurrentUser();
@@ -39,7 +34,9 @@ export default function Profile() {
     }
   };
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {
+    return <GuestGuard message="Log in to manage your profile settings." />;
+  }
 
   return (
     <AppLayout>

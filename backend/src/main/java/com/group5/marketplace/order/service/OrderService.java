@@ -23,6 +23,11 @@ import com.group5.marketplace.product.entity.Product;
 import com.group5.marketplace.product.entity.ProductVariant;
 import com.group5.marketplace.product.repository.ProductRepository;
 import com.group5.marketplace.product.repository.variant.ProductVariantRepository;
+import com.group5.marketplace.notification.entity.Notification.NotificationType;
+import com.group5.marketplace.notification.service.NotificationService;
+import com.group5.marketplace.promotion.entity.Coupon;
+import com.group5.marketplace.promotion.repository.CouponRepository;
+import com.group5.marketplace.promotion.service.CouponService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,12 +53,16 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final PaymentRepository paymentRepository;
     private final CheckoutProperties checkoutProperties;
+    private final NotificationService notificationService;
+    private final CouponService couponService;
+    private final CouponRepository couponRepository;
 
     public OrderService(CartRepository cartRepository, CartItemRepository cartItemRepository,
                         ProductVariantRepository variantRepository, ProductRepository productRepository,
                         AddressRepository addressRepository, OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository, PaymentRepository paymentRepository,
-                        CheckoutProperties checkoutProperties) {
+                        CheckoutProperties checkoutProperties, NotificationService notificationService,
+                        CouponService couponService, CouponRepository couponRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.variantRepository = variantRepository;
@@ -63,6 +72,9 @@ public class OrderService {
         this.orderItemRepository = orderItemRepository;
         this.paymentRepository = paymentRepository;
         this.checkoutProperties = checkoutProperties;
+        this.notificationService = notificationService;
+        this.couponService = couponService;
+        this.couponRepository = couponRepository;
     }
 
     private Cart getOrCreateCart(Long userId) {
@@ -135,7 +147,13 @@ public class OrderService {
     private CartItemResponse toCartItemResponse(CartItem item) {
         CartItemResponse r = new CartItemResponse();
         ProductVariant v = item.getVariant();
+        if (v == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Cart item references a missing variant");
+        }
         Product p = v.getProduct();
+        if (p == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Product variant references a missing product");
+        }
         r.setVariantId(v.getId());
         r.setProductId(p.getId());
         r.setProductName(p.getName());
@@ -187,7 +205,13 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem item : items) {
             ProductVariant v = item.getVariant();
+            if (v == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart item references a missing variant");
+            }
             Product p = v.getProduct();
+            if (p == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product variant references a missing product");
+            }
             int qty = item.getQuantity();
             int available = v.getStock() == null ? 0 : v.getStock();
             if (available < qty) {
@@ -213,11 +237,24 @@ public class OrderService {
 
         BigDecimal shippingCost = computeShipping(subtotal);
         BigDecimal tax = computeTax(subtotal);
-        BigDecimal total = subtotal.add(shippingCost).add(tax);
+
+        BigDecimal discount = BigDecimal.ZERO;
+        String couponCode = null;
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+            Coupon coupon = couponRepository.findByCodeIgnoreCase(request.getCouponCode().trim())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid coupon code"));
+            couponService.applyCoupon(coupon.getCode());
+            discount = couponService.calculateDiscount(coupon, subtotal);
+            couponCode = coupon.getCode();
+        }
+
+        BigDecimal total = subtotal.add(shippingCost).add(tax).subtract(discount);
 
         order.setSubtotal(subtotal);
         order.setShippingCost(shippingCost);
         order.setTax(tax);
+        order.setDiscount(discount);
+        order.setCouponCode(couponCode);
         order.setTotal(total);
         order.setItems(orderItems);
         orderRepository.save(order);
@@ -353,6 +390,15 @@ public class OrderService {
             payment = paymentRepository.save(payment);
         }
 
+        notificationService.send(
+                userId,
+                NotificationType.ORDER_UPDATE,
+                "Order Cancelled",
+                "Your order #" + orderId + " has been cancelled.",
+                orderId,
+                "Order"
+        );
+
         return toOrderResponse(order, payment);
     }
 
@@ -398,6 +444,17 @@ public class OrderService {
                 payment = paymentRepository.save(payment);
             }
         }
+
+        String statusLabel = newStatus.name().charAt(0) + newStatus.name().substring(1).toLowerCase();
+        notificationService.send(
+                order.getUserId(),
+                NotificationType.ORDER_UPDATE,
+                "Order " + statusLabel,
+                "Your order #" + orderId + " has been " + statusLabel.toLowerCase() + ".",
+                orderId,
+                "Order"
+        );
+
         return toOrderResponse(order, payment);
     }
 
@@ -424,6 +481,8 @@ public class OrderService {
         r.setSubtotal(order.getSubtotal());
         r.setShippingCost(order.getShippingCost());
         r.setTax(order.getTax());
+        r.setDiscount(order.getDiscount());
+        r.setCouponCode(order.getCouponCode());
         r.setTotal(order.getTotal());
         r.setNotes(order.getNotes());
         r.setShippingAddressId(order.getShippingAddressId());
@@ -465,9 +524,11 @@ public class OrderService {
         if (v != null) {
             r.setSku(v.getSku());
             Product p = v.getProduct();
-            r.setProductId(p.getId());
-            r.setProductName(p.getName());
-            r.setProductSlug(p.getSlug());
+            if (p != null) {
+                r.setProductId(p.getId());
+                r.setProductName(p.getName());
+                r.setProductSlug(p.getSlug());
+            }
         }
         r.setUnitPrice(oi.getUnitPrice());
         r.setQuantity(oi.getQuantity());

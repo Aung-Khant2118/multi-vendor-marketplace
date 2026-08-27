@@ -71,21 +71,31 @@ public class AuthService {
 
     public void registerVendor(com.group5.marketplace.vendor.dto.VendorRegistrationRequest request) {
 
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already exists");
+        java.util.Optional<User> existingUserOpt = userRepository.findByEmail(request.getEmail());
+
+        User user;
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (existingUser.getRole() == Role.VENDOR) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already registered as vendor");
+            }
+            // Existing CUSTOMER upgrading to VENDOR – update role and password
+            existingUser.setRole(Role.VENDOR);
+            existingUser.setPassword(passwordEncoder.encode(request.getPassword()));
+            user = existingUser;
+        } else {
+            user = User.builder()
+                    .firstName(request.getFirstName())
+                    .lastName(request.getLastName())
+                    .email(request.getEmail())
+                    .username(request.getEmail())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .role(Role.VENDOR)
+                    .emailVerified(false)
+                    .build();
+
+            issueVerificationToken(user);
         }
-
-        User user = User.builder()
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .username(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.VENDOR)
-                .emailVerified(false)
-                .build();
-
-        issueVerificationToken(user);
 
         User saved = userRepository.save(user);
 
@@ -150,6 +160,29 @@ public class AuthService {
     private void issueVerificationToken(User user) {
         user.setVerificationToken(UUID.randomUUID().toString());
         user.setVerificationTokenExpiry(new Date(System.currentTimeMillis() + VERIFICATION_TOKEN_EXPIRATION_MS));
+    }
+
+    /**
+     * Issue a fresh JWT that reflects the user's current role in the database.
+     * Called by the frontend on mount to stay in sync after role upgrades
+     * (e.g. customer → vendor) without requiring a full re-login.
+     */
+    public LoginResponse refreshRole(String currentToken) {
+        String email = jwtService.extractUsername(currentToken);
+        if (email == null || !jwtService.isTokenValid(currentToken, email)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        String newToken = jwtService.generateToken(user.getEmail(), user.getRole().name());
+        String newRefreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getRole().name());
+
+        return LoginResponse.builder()
+                .token(newToken)
+                .refreshToken(newRefreshToken)
+                .build();
     }
 
     private void sendVerificationEmail(User user) {

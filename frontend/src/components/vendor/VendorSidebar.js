@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FiGrid, FiClipboard, FiBox, FiTrendingUp, FiShoppingBag, FiX } from 'react-icons/fi';
+import { FiGrid, FiClipboard, FiBox, FiTrendingUp, FiX } from 'react-icons/fi';
 import { HiMegaphone } from 'react-icons/hi2';
+import { useAuth } from '../../features/auth/AuthContext';
+import { useHasMounted } from '../../lib/useHasMounted';
 
 const NAV_ITEMS = [
   { href: '/vendor/dashboard', label: 'Overview', icon: FiGrid },
@@ -11,10 +13,24 @@ const NAV_ITEMS = [
   { href: '/vendor/analytics', label: 'Analytics', icon: FiTrendingUp },
 ];
 
-export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onToggleExpand, healthPct = 72 }) {
+const roleLabel = (user) => {
+  if (user?.role === 'ADMIN') return 'Administrator account';
+  if (user?.role === 'VENDOR') return 'Vendor account';
+  return 'Customer account';
+};
+
+const initialsOf = (user) => {
+  if (!user) return '';
+  const a = user.firstName?.[0] || '';
+  const b = user.lastName?.[0] || '';
+  return (a + b || user.email?.[0] || '?').toUpperCase();
+};
+
+export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onToggleExpand }) {
   const router = useRouter();
-  // The mobile drawer is always shown in its full "expanded" form, even
-  // though the desktop collapse toggle is a separate piece of state.
+  const { isAuthenticated: authState, user } = useAuth();
+  const mounted = useHasMounted();
+  const isAuthenticated = mounted && authState;
   const showLabels = expanded || mobileOpen;
 
   return (
@@ -35,11 +51,19 @@ export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onT
           onClick={onToggleExpand}
           aria-label={expanded ? 'Collapse menu' : 'Expand menu'}
         >
-          <span className="vendor-sidebar-mark">
-            <FiShoppingBag size={17} />
-          </span>
-          {showLabels && <span className="vendor-sidebar-name">VENDOR</span>}
+          <span className="vendor-sidebar-mark">Z</span>
+          {showLabels && <span className="vendor-sidebar-name">ZAYLINK</span>}
         </button>
+
+        {showLabels && isAuthenticated && (
+          <div className="vendor-user-card">
+            <span className="vendor-avatar">{initialsOf(user)}</span>
+            <span className="vendor-user-name">
+              {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email}
+            </span>
+            <span className="vendor-user-sub">{roleLabel(user)}</span>
+          </div>
+        )}
 
         <nav className="vendor-nav">
           {NAV_ITEMS.map((item) => {
@@ -58,17 +82,6 @@ export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onT
             );
           })}
         </nav>
-
-        <div className="vendor-sidebar-spacer" />
-
-        {showLabels && (
-          <div className="vendor-health-card">
-            <div className="vendor-health-label">Marketplace Health</div>
-            <div className="vendor-health-track">
-              <div className="vendor-health-fill" style={{ width: `${healthPct}%` }} />
-            </div>
-          </div>
-        )}
       </aside>
       <div className={`vendor-sidebar-scrim ${mobileOpen ? 'open' : ''}`} onClick={onCloseMobile} />
     </>

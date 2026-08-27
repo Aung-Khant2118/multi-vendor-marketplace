@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { customerAPI, addressAPI } from '../services/api';
 import { useAuth } from '../features/auth/AuthContext';
+import GuestGuard from '../components/Auth/GuestGuard';
 
 const PAYMENT_METHODS = ['CASH_ON_DELIVERY', 'CARD', 'WALLET', 'BANK_TRANSFER'];
 
@@ -38,10 +39,7 @@ export default function Checkout() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/auth/login');
-      return;
-    }
+    if (!isAuthenticated) return;
     Promise.all([customerAPI.getCart(), addressAPI.getAddresses()])
       .then(([c, a]) => {
         setCart(c.data?.data || null);
@@ -50,7 +48,9 @@ export default function Checkout() {
       .catch((err) => setError(err.response?.data?.message || 'Failed to load checkout data'));
   }, [isAuthenticated]);
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {
+    return <GuestGuard message="Log in to complete your checkout." />;
+  }
 
   const items = cart?.items || [];
   const subtotal = items.reduce((sum, it) => sum + Number(it.subtotal || 0), 0);

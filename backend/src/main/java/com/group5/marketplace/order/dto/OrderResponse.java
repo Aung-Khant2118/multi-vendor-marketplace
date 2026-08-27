@@ -10,6 +10,8 @@ public class OrderResponse {
     private java.math.BigDecimal subtotal;
     private java.math.BigDecimal shippingCost;
     private java.math.BigDecimal tax;
+    private java.math.BigDecimal discount;
+    private String couponCode;
     private java.math.BigDecimal total;
     private String notes;
     private Long shippingAddressId;
@@ -35,6 +37,10 @@ public class OrderResponse {
     public void setShippingCost(java.math.BigDecimal shippingCost) { this.shippingCost = shippingCost; }
     public java.math.BigDecimal getTax() { return tax; }
     public void setTax(java.math.BigDecimal tax) { this.tax = tax; }
+    public java.math.BigDecimal getDiscount() { return discount; }
+    public void setDiscount(java.math.BigDecimal discount) { this.discount = discount; }
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
     public java.math.BigDecimal getTotal() { return total; }
     public void setTotal(java.math.BigDecimal total) { this.total = total; }
     public String getNotes() { return notes; }

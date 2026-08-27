@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
 
 const loginSchema = yup.object().shape({
-  email: yup.string().email('Invalid email').required('Email is required'),
+  email: yup.string().email('Please enter a valid email address').required('Email is required'),
   password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
 });
 
@@ -18,6 +18,7 @@ export default function LoginForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [serverError, setServerError] = useState('');
 
   const {
     register,
@@ -28,6 +29,7 @@ export default function LoginForm() {
   });
 
   const onSubmit = async (data) => {
+    setServerError('');
     setLoading(true);
     const result = await login(data.email, data.password);
     setLoading(false);
@@ -36,17 +38,33 @@ export default function LoginForm() {
       toast.success('Login successful! Welcome back.');
       router.push('/dashboard');
     } else {
-      const statusText = result.status ? ` (code: ${result.status})` : '';
-      toast.error((result.error || 'Login failed. Please try again.') + statusText);
-      console.error('Login failed response:', result.raw || result);
+      const message = result.error || 'Login failed. Please try again.';
+      setServerError(message);
+      toast.error(message);
     }
   };
+
+  const hasErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="auth-card">
       <h1 className="auth-title">Welcome back to ZayLink</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      {serverError && (
+        <div className="auth-error-banner">
+          <FiAlertCircle />
+          <span>{serverError}</span>
+        </div>
+      )}
+
+      {hasErrors && (
+        <div className="auth-warning-banner">
+          <FiAlertCircle />
+          <span>Please fix {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} below</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="form-group">
           <label className="form-label">Email</label>
           <input

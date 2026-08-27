@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
@@ -11,7 +11,7 @@ import { toast } from 'react-toastify';
 const registerSchema = yup.object().shape({
   firstName: yup.string().required('First name is required').min(2, 'Name must be at least 2 characters'),
   lastName: yup.string().required('Last name is required').min(2, 'Name must be at least 2 characters'),
-  email: yup.string().email('Invalid email').required('Email is required'),
+  email: yup.string().email('Please enter a valid email address').required('Email is required'),
   password: yup.string().required('Password is required').min(6, 'Password must be at least 6 characters'),
   confirmPassword: yup
     .string()
@@ -26,6 +26,7 @@ export default function RegisterForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [serverError, setServerError] = useState('');
 
   const {
     register,
@@ -39,6 +40,7 @@ export default function RegisterForm() {
   });
 
   const onSubmit = async (data) => {
+    setServerError('');
     setLoading(true);
     const registrationData = {
       firstName: data.firstName,
@@ -54,18 +56,34 @@ export default function RegisterForm() {
       toast.success('Registration successful! Please log in.');
       router.push('/auth/login');
     } else {
-      const statusText = result.status ? ` (code: ${result.status})` : '';
-      toast.error((result.error || 'Registration failed. Please try again.') + statusText);
-      console.error('Registration error response:', result.raw || result);
+      const message = result.error || 'Registration failed. Please try again.';
+      setServerError(message);
+      toast.error(message);
     }
   };
+
+  const hasErrors = Object.keys(errors).length > 0;
 
   return (
     <div className="auth-card">
       <h2 className="auth-title">Create Account</h2>
       <p className="auth-subtitle">Join ZayLink to start your journey.</p>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      {serverError && (
+        <div className="auth-error-banner">
+          <FiAlertCircle />
+          <span>{serverError}</span>
+        </div>
+      )}
+
+      {hasErrors && (
+        <div className="auth-warning-banner">
+          <FiAlertCircle />
+          <span>Please fix {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} below</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="form-group">
           <label className="form-label">First Name</label>
           <input

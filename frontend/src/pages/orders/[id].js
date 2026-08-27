@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { customerAPI } from '../../services/api';
 import { useAuth } from '../../features/auth/AuthContext';
+import GuestGuard from '../../components/Auth/GuestGuard';
 
 const formatAddress = (a) => {
   if (!a) return '—';
@@ -21,10 +22,7 @@ export default function OrderDetail() {
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/auth/login');
-      return;
-    }
+    if (!isAuthenticated) return;
     if (!id) return;
     customerAPI
       .getOrder(id)
@@ -32,7 +30,9 @@ export default function OrderDetail() {
       .catch((err) => setError(err.response?.data?.message || 'Failed to load order'));
   }, [isAuthenticated, id]);
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated) {
+    return <GuestGuard message="Log in to view order details." layout={false} />;
+  }
 
   const cancelOrder = async () => {
     setCancelling(true);

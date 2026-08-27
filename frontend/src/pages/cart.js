@@ -5,6 +5,7 @@ import { FiShoppingCart } from 'react-icons/fi';
 import { customerAPI } from '../services/api';
 import { useAuth } from '../features/auth/AuthContext';
 import AppLayout from '../components/layout/AppLayout';
+import GuestGuard from '../components/Auth/GuestGuard';
 
 export default function Cart() {
   const { isAuthenticated, loading } = useAuth();
@@ -20,27 +21,14 @@ export default function Cart() {
       .catch((err) => setError(err.response?.data?.message || 'Failed to load cart'));
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.replace('/auth/login');
-      return;
-    }
     if (isAuthenticated) load();
-  }, [loading, isAuthenticated]);
+  }, [isAuthenticated]);
 
-  const checkout = async () => {
-    setCheckingOut(true);
-    try {
-      const res = await customerAPI.checkout({});
-      toast.success(`Order #${res.data?.data?.id} placed`);
-      load();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Checkout failed');
-    } finally {
-      setCheckingOut(false);
-    }
-  };
+  const checkout = () => router.push('/checkout');
 
-  if (!isAuthenticated) return null;
+  if (!loading && !isAuthenticated) {
+    return <GuestGuard message="Log in to view your cart and check out." />;
+  }
 
   const items = cart?.items || [];
 

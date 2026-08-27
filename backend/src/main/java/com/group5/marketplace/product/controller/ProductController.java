@@ -7,12 +7,14 @@ import com.group5.marketplace.product.service.ProductService;
 import com.group5.marketplace.product.service.impl.ProductImageService;
 import com.group5.marketplace.user.util.CurrentUserService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
@@ -26,21 +28,34 @@ public class ProductController {
     private final CurrentUserService currentUserService;
     private final ProductImageService productImageService;
     private final com.group5.marketplace.product.service.ProductVariantService variantService;
+    private final com.group5.marketplace.order.service.OrderService orderService;
 
     public ProductController(ProductService productService, CurrentUserService currentUserService, ProductImageService productImageService,
-                             com.group5.marketplace.product.service.ProductVariantService variantService) {
+                             com.group5.marketplace.product.service.ProductVariantService variantService,
+                             com.group5.marketplace.order.service.OrderService orderService) {
         this.productService = productService;
         this.currentUserService = currentUserService;
         this.productImageService = productImageService;
         this.variantService = variantService;
+        this.orderService = orderService;
     }
 
     @GetMapping("/products")
-    public ResponseEntity<Map<String, Object>> list() {
-        List<ProductResponse> data = productService.getAll();
+    public ResponseEntity<Map<String, Object>> list(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long category,
+            @RequestParam(required = false) BigDecimal priceMin,
+            @RequestParam(required = false) BigDecimal priceMax,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ProductResponse> products = productService.search(q, category, priceMin, priceMax, sort, page, size);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
-        body.put("data", data);
+        body.put("data", products.getContent());
+        body.put("totalElements", products.getTotalElements());
+        body.put("totalPages", products.getTotalPages());
+        body.put("currentPage", products.getNumber());
         return ResponseEntity.ok(body);
     }
 
@@ -95,7 +110,7 @@ public class ProductController {
         data.put("productCount", (long) products.size());
         data.put("variantCount", variantCount);
         data.put("stockUnits", stockUnits);
-        data.put("ordersCount", 0L);
+        data.put("ordersCount", (long) orderService.getVendorOrders(vendorId).size());
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
         body.put("data", data);

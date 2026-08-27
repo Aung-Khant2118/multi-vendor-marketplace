@@ -66,6 +66,12 @@ public class Order {
     private BigDecimal tax = BigDecimal.ZERO;
 
     @Column(nullable = false)
+    private BigDecimal discount = BigDecimal.ZERO;
+
+    @Column(name = "coupon_code")
+    private String couponCode;
+
+    @Column(nullable = false)
     private BigDecimal total = BigDecimal.ZERO;
 
     @Column(length = 2000)
@@ -104,6 +110,10 @@ public class Order {
     public void setShippingCost(BigDecimal shippingCost) { this.shippingCost = shippingCost; }
     public BigDecimal getTax() { return tax; }
     public void setTax(BigDecimal tax) { this.tax = tax; }
+    public BigDecimal getDiscount() { return discount; }
+    public void setDiscount(BigDecimal discount) { this.discount = discount; }
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
     public BigDecimal getTotal() { return total; }
     public void setTotal(BigDecimal total) { this.total = total; }
     public String getNotes() { return notes; }

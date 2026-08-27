@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import { customerAPI, categoryAPI } from '../../services/api';
-import { FALLBACK_PRODUCTS, DEFAULT_CATEGORIES } from '../../lib/catalog';
 import { useQuickAddToCart } from '../../lib/useQuickAddToCart';
 import AppLayout from '../../components/layout/AppLayout';
 import ProductCard from '../../components/marketplace/ProductCard';
@@ -12,7 +11,7 @@ export default function Products() {
   const router = useRouter();
   const { q, category } = router.query;
   const [products, setProducts] = useState(null);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useState([]);
   const [sort, setSort] = useState(SORTS[0]);
   const [catMenuOpen, setCatMenuOpen] = useState(false);
   const { addToCart, loadingId } = useQuickAddToCart();
@@ -21,21 +20,18 @@ export default function Products() {
     customerAPI
       .getProducts()
       .then((res) => setProducts(res.data?.data || []))
-      .catch(() => setProducts([]));
+      .catch((err) => { console.error('Failed to load products:', err); setProducts([]); });
 
     categoryAPI
       .getCategories()
       .then((res) => {
         const data = res.data?.data || [];
-        if (data.length > 0) setCategories(data);
+        setCategories(data);
       })
-      .catch(() => {});
+      .catch(() => setCategories([]));
   }, []);
 
-  const catalog = useMemo(
-    () => (products && products.length > 0 ? products : FALLBACK_PRODUCTS),
-    [products]
-  );
+  const catalog = useMemo(() => products || [], [products]);
 
   const filtered = useMemo(() => {
     let list = [...catalog];

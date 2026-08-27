@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { customerAPI, categoryAPI } from '../services/api';
-import { FALLBACK_PRODUCTS, DEFAULT_CATEGORIES } from '../lib/catalog';
 import AppLayout from '../components/layout/AppLayout';
 import PromoBanner from '../components/marketplace/PromoBanner';
 import SectionPanel from '../components/marketplace/SectionPanel';
@@ -11,28 +10,25 @@ const SORTS = ['Category', 'Price', 'Rating', 'Newest'];
 
 export default function Home() {
   const [products, setProducts] = useState(null);
-  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [categories, setCategories] = useState([]);
   const [activeSort, setActiveSort] = useState('Price');
 
   useEffect(() => {
     customerAPI
       .getProducts()
       .then((res) => setProducts(res.data?.data || []))
-      .catch(() => setProducts([]));
+      .catch((err) => { console.error('Failed to load products:', err); setProducts([]); });
 
     categoryAPI
       .getCategories()
       .then((res) => {
         const data = res.data?.data || [];
-        if (data.length > 0) setCategories(data);
+        setCategories(data);
       })
-      .catch(() => {});
+      .catch(() => setCategories([]));
   }, []);
 
-  const catalog = useMemo(() => {
-    const list = products && products.length > 0 ? products : FALLBACK_PRODUCTS;
-    return list;
-  }, [products]);
+  const catalog = useMemo(() => products || [], [products]);
 
   const sorted = useMemo(() => {
     const list = [...catalog];
@@ -66,7 +62,7 @@ export default function Home() {
         linkLabel="View all categories"
       >
         <div className="category-grid">
-          {categories.slice(0, 6).map((c) => (
+          {categories.map((c) => (
             <CategoryChip key={c.id} category={c} />
           ))}
         </div>

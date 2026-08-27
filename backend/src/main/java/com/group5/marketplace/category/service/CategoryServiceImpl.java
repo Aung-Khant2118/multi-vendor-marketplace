@@ -5,7 +5,9 @@ import com.group5.marketplace.category.dto.CategoryResponse;
 import com.group5.marketplace.category.entity.Category;
 import com.group5.marketplace.category.mapper.CategoryMapper;
 import com.group5.marketplace.category.repository.CategoryRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -24,11 +26,11 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse create(CategoryRequest request) {
 
         if (categoryRepository.existsByName(request.getName())) {
-            throw new RuntimeException("Category name already exists.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category name already exists.");
         }
 
         if (categoryRepository.existsBySlug(request.getSlug())) {
-            throw new RuntimeException("Category slug already exists.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Category slug already exists.");
         }
 
         Category category = categoryMapper.toEntity(request);
@@ -52,7 +54,7 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryResponse getById(Long id) {
 
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found."));
 
         return categoryMapper.toResponse(category);
     }
@@ -60,7 +62,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryResponse getBySlug(String slug) {
         Category category = categoryRepository.findBySlug(slug)
-                .orElseThrow(() -> new RuntimeException("Category not found."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found."));
 
         return categoryMapper.toResponse(category);
     }
@@ -68,13 +70,13 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryResponse update(Long id, CategoryRequest request) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found."));
 
         // validate name
         if (request.getName() != null && !request.getName().equals(category.getName())) {
             categoryRepository.findByName(request.getName()).ifPresent(c -> {
                 if (!c.getId().equals(id)) {
-                    throw new RuntimeException("Category name already exists.");
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Category name already exists.");
                 }
             });
             category.setName(request.getName());
@@ -84,7 +86,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.getSlug() != null && !request.getSlug().equals(category.getSlug())) {
             categoryRepository.findBySlug(request.getSlug()).ifPresent(c -> {
                 if (!c.getId().equals(id)) {
-                    throw new RuntimeException("Category slug already exists.");
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Category slug already exists.");
                 }
             });
             category.setSlug(request.getSlug());
@@ -102,7 +104,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public void delete(Long id) {
         Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Category not found."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found."));
 
         // soft delete: set active = false
         category.setActive(false);
