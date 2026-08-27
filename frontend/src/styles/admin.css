@@ -1,0 +1,545 @@
+/* ======================================================================
+   ADMIN CONSOLE — content-level additions only.
+   The admin shell (sidebar/topbar/footer) reuses the existing app-shell,
+   sidebar-*, search-bar and topbar-* classes from globals.css as-is, so
+   only the dashboard/table content pieces below are new. Every value here
+   is pulled from the same tokens (--navy-*, --yellow-*, --radius-*,
+   --shadow-*, --text-*) already defined in globals.css.
+   ====================================================================== */
+
+/* ----- Stat cards (Dashboard) ----- */
+.astat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.astat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.astat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--yellow-050);
+  color: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.astat-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.4px;
+}
+
+.astat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.astat-card.tone-dark {
+  background: var(--navy-950);
+  border-color: var(--navy-950);
+}
+
+.astat-card.tone-dark .astat-icon {
+  background: var(--yellow-500);
+  color: var(--navy-950);
+}
+
+.astat-card.tone-dark .astat-value {
+  color: #fff;
+}
+
+.astat-card.tone-dark .astat-label {
+  color: var(--text-on-navy-muted);
+}
+
+.astat-card.tone-warn {
+  background: var(--yellow-050);
+  border: 1px solid var(--yellow-500);
+}
+
+.astat-card.tone-warn .astat-icon {
+  background: #fff;
+  color: var(--yellow-600);
+}
+
+.astat-card.tone-warn .astat-value {
+  color: var(--navy-950);
+}
+
+.astat-card.tone-warn .astat-label {
+  color: var(--navy-800);
+}
+
+/* ----- Chart legend (Visit and Sales Statistics) ----- */
+.achart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.achart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.achart-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ----- Recent activity feed ----- */
+.aactivity-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.aactivity-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.aactivity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.aactivity-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.aactivity-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.aactivity-icon.tone-purple { background: #ece2fb; color: #8b5cf6; }
+.aactivity-icon.tone-green { background: #dff3df; color: #238a3d; }
+.aactivity-icon.tone-amber { background: var(--yellow-050); color: #9a7b06; }
+.aactivity-icon.tone-gray { background: #eef0f4; color: #6b7280; }
+.aactivity-icon.tone-red { background: #fbe3e7; color: #c0293f; }
+
+.aactivity-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.aactivity-desc {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.aactivity-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ----- Extra role/status pill tones (extends .vpill from globals.css) ----- */
+.vpill-purple { background: #ece2fb; color: #8b5cf6; }
+.vpill-pink { background: #fbe3ea; color: #d94f7f; }
+
+.vpill-role {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ----- Modal ----- */
+.amodal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 18, 32, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+
+.amodal {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.amodal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.amodal-head h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.amodal-close {
+  border: none;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.amodal-close:hover {
+  color: var(--text-primary);
+}
+
+.amodal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.amodal-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13.5px;
+}
+
+.amodal-detail-row:last-child {
+  border-bottom: none;
+}
+
+.amodal-detail-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.amodal-detail-value {
+  color: var(--text-primary);
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ----- Kebab action menu tones (reuses .filter-pill-menu/.filter-pill-dropdown) ----- */
+.filter-pill-dropdown button.tone-green { color: #238a3d; }
+.filter-pill-dropdown button.tone-red { color: #c0293f; }
+.filter-pill-dropdown button.tone-gray { color: var(--text-secondary); }
+
+/* ----- Rows-per-page select (Users/Vendors/Categories/Audit tables) ----- */
+.arows-select {
+  border: 1px solid var(--border-color-strong);
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ----- Tab pill with trailing count badge (Vendor Management status tabs) ----- */
+.vtab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 800;
+  background: rgba(16, 24, 43, 0.08);
+}
+
+.vtab.active .vtab-count {
+  background: rgba(16, 24, 43, 0.14);
+}
+
+/* ----- Category icon tones (Category Management) ----- */
+.acat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.acat-icon.tone-cyan { background: #dff3f8; color: #1b8fa8; }
+.acat-icon.tone-pink { background: #fbe3ea; color: #d94f7f; }
+.acat-icon.tone-teal { background: #dcf3ef; color: #17a589; }
+.acat-icon.tone-purple { background: #ece2fb; color: #8b5cf6; }
+.acat-icon.tone-amber { background: var(--yellow-050); color: #9a7b06; }
+
+/* ----- Dark "User Details" modal (Users page View action) -----
+   A deliberately distinct dark-navy skin for this one modal, matching the
+   admin design reference exactly. Built from the same navy/yellow tokens
+   as the rest of the app rather than the light .amodal shell. */
+.auser-modal {
+  position: relative;
+  background: var(--navy-900);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px 28px 24px;
+  color: var(--text-on-navy);
+}
+
+.auser-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: var(--navy-800);
+  color: var(--text-on-navy-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.auser-modal-close:hover {
+  color: #fff;
+}
+
+.auser-modal-avatar-wrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 16px;
+}
+
+.auser-modal-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--navy-950);
+  border: 3px solid var(--yellow-500);
+  color: #fff;
+  font-weight: 800;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auser-modal-status-dot {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2fa84f;
+  border: 3px solid var(--navy-900);
+}
+
+.auser-modal-name {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auser-modal-verified-icon {
+  color: var(--yellow-500);
+}
+
+.auser-modal-uid {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-on-navy-muted);
+  margin-top: 4px;
+}
+
+.auser-modal-panel {
+  background: var(--navy-800);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-top: 20px;
+}
+
+.auser-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 16px;
+}
+
+.auser-modal-field-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-on-navy-muted);
+  margin-bottom: 4px;
+}
+
+.auser-modal-field-value {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.auser-modal-divider {
+  border-top: 1px solid var(--navy-700);
+  margin: 16px 0;
+}
+
+.auser-modal-select {
+  width: 100%;
+  background: var(--navy-900);
+  border: 1px solid var(--navy-700);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.auser-modal-hint {
+  font-size: 11px;
+  color: var(--text-on-navy-muted);
+  margin-top: 4px;
+}
+
+.auser-modal-verify-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  background: var(--yellow-500);
+  color: var(--navy-950);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.auser-modal-verify-btn:hover {
+  background: var(--yellow-600);
+}
+
+.auser-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--navy-700);
+}
+
+.auser-modal-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #ff8095;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.auser-modal-delete:hover {
+  color: #ffaab5;
+}
+
+.auser-modal-close-btn {
+  background: transparent;
+  border: 1px solid var(--navy-700);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.auser-modal-close-btn:hover {
+  background: var(--navy-800);
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 980px) {
+  .astat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .astat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auser-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}

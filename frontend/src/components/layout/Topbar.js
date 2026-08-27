@@ -96,8 +96,8 @@ export default function Topbar({ onOpenMobileMenu }) {
 
               {menuOpen && (
                 <div className="user-menu" onMouseLeave={() => setMenuOpen(false)}>
-                  <Link href="/profile" onClick={() => setMenuOpen(false)}>
-                    <FiSettings /> Profile settings
+                  <Link href="/settings" onClick={() => setMenuOpen(false)}>
+                    <FiSettings /> Settings
                   </Link>
                   <button type="button" onClick={handleLogout}>
                     <FiLogOut /> Log out
