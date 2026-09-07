@@ -1,27 +1,30 @@
 package com.group5.marketplace.product.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ProductVariantRequest {
 
-    @NotNull
     private Long productId;
 
+    @Size(max = 100)
     private String sku;
 
     private BigDecimal price;
 
     private Integer stock;
 
-    private String attributes; // JSON or key:value pairs
+    @Valid
+    private List<VariantAttributeDto> attributes;
 
     private Boolean active;
 
     public ProductVariantRequest() {}
 
-    public ProductVariantRequest(Long productId, String sku, BigDecimal price, Integer stock, String attributes, Boolean active) {
+    public ProductVariantRequest(Long productId, String sku, BigDecimal price, Integer stock, List<VariantAttributeDto> attributes, Boolean active) {
         this.productId = productId;
         this.sku = sku;
         this.price = price;
@@ -38,9 +41,8 @@ public class ProductVariantRequest {
     public void setPrice(BigDecimal price) { this.price = price; }
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
-    public String getAttributes() { return attributes; }
-    public void setAttributes(String attributes) { this.attributes = attributes; }
+    public List<VariantAttributeDto> getAttributes() { return attributes; }
+    public void setAttributes(List<VariantAttributeDto> attributes) { this.attributes = attributes; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
 }
-

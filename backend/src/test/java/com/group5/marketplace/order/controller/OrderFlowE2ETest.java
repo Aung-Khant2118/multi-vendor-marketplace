@@ -17,6 +17,8 @@ import com.group5.marketplace.product.repository.variant.ProductVariantRepositor
 import com.group5.marketplace.user.entity.Role;
 import com.group5.marketplace.user.entity.User;
 import com.group5.marketplace.user.repository.UserRepository;
+import com.group5.marketplace.vendor.entity.Vendor;
+import com.group5.marketplace.vendor.repository.VendorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "jwt.refresh-expiration=604800000",
         "app.checkout.shipping-flat-rate=5.00",
         "app.checkout.free-shipping-threshold=50.00",
-        "app.checkout.tax-rate=0.08"
+        "app.checkout.tax-rate=0"
 })
 class OrderFlowE2ETest {
 
@@ -76,6 +78,9 @@ class OrderFlowE2ETest {
 
     @Autowired
     private com.group5.marketplace.cart.repository.CartItemRepository cartItemRepository;
+
+    @Autowired
+    private VendorRepository vendorRepository;
 
     @Autowired
     private OrderRepository orderRepository;
@@ -108,6 +113,7 @@ class OrderFlowE2ETest {
         productRepository.deleteAll();
         categoryRepository.deleteAll();
         addressRepository.deleteAll();
+        vendorRepository.deleteAll();
         userRepository.deleteAll();
 
         User customer = User.builder()
@@ -135,6 +141,14 @@ class OrderFlowE2ETest {
         userRepository.save(vendor);
         vendorId = vendor.getId();
         vendorToken = jwtService.generateToken(vendor.getEmail(), vendor.getRole().name());
+
+        Vendor vendorProfile = Vendor.builder()
+                .userId(vendorId)
+                .storeName("Vendor One Store")
+                .slug("vendor-one-store")
+                .status(Vendor.VendorStatus.ACTIVE)
+                .build();
+        vendorRepository.save(vendorProfile);
 
         Address shipping = new Address();
         shipping.setUserId(customerId);
@@ -195,19 +209,19 @@ class OrderFlowE2ETest {
                                 "notes", "Please deliver in the morning"
                         ))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.subtotal").value(40.00))
-                .andExpect(jsonPath("$.data.shippingCost").value(5.00))
-                .andExpect(jsonPath("$.data.tax").value(3.20))
-                .andExpect(jsonPath("$.data.total").value(48.20))
-                .andExpect(jsonPath("$.data.status").value("PENDING"))
-                .andExpect(jsonPath("$.data.paymentMethod").value("CARD"))
-                .andExpect(jsonPath("$.data.paymentStatus").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.shippingAddress.city").value("Yangon"))
-                .andExpect(jsonPath("$.data.billingAddress.recipientName").value("Jane Doe"))
-                .andExpect(jsonPath("$.data.items[0].quantity").value(2))
+                .andExpect(jsonPath("$.data[0].subtotal").value(40.00))
+                .andExpect(jsonPath("$.data[0].shippingCost").value(5.00))
+                .andExpect(jsonPath("$.data[0].tax").value(0))
+                .andExpect(jsonPath("$.data[0].total").value(45.00))
+                .andExpect(jsonPath("$.data[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.data[0].paymentMethod").value("CARD"))
+                .andExpect(jsonPath("$.data[0].paymentStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.data[0].shippingAddress.city").value("Yangon"))
+                .andExpect(jsonPath("$.data[0].billingAddress.recipientName").value("Jane Doe"))
+                .andExpect(jsonPath("$.data[0].items[0].quantity").value(2))
                 .andReturn();
 
-        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path(0).path("id").asLong();
         assertThat(orderId).isNotNull();
 
         // stock decremented
@@ -264,7 +278,7 @@ class OrderFlowE2ETest {
                                 "paymentMethod", "CARD"))))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path(0).path("id").asLong();
 
         mockMvc.perform(post("/api/orders/" + orderId + "/cancel")
                         .header("Authorization", "Bearer " + customerToken))
@@ -292,11 +306,32 @@ class OrderFlowE2ETest {
                                 "shippingAddressId", shippingAddressId,
                                 "paymentMethod", "CASH_ON_DELIVERY"))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.paymentStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data[0].paymentStatus").value("PENDING"))
                 .andReturn();
-        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path(0).path("id").asLong();
 
-        // vendor delivers -> COD payment completed
+        // vendor follows workflow: PENDING -> CONFIRMED -> PROCESSING -> SHIPPED -> DELIVERED
+        mockMvc.perform(put("/api/vendor/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"CONFIRMED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("CONFIRMED"));
+
+        mockMvc.perform(put("/api/vendor/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"PROCESSING\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PROCESSING"));
+
+        mockMvc.perform(put("/api/vendor/orders/" + orderId)
+                        .header("Authorization", "Bearer " + vendorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\": \"SHIPPED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("SHIPPED"));
+
         mockMvc.perform(put("/api/vendor/orders/" + orderId)
                         .header("Authorization", "Bearer " + vendorToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -337,7 +372,7 @@ class OrderFlowE2ETest {
                                 "paymentMethod", "CASH_ON_DELIVERY"))))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path(0).path("id").asLong();
 
         // another user cannot view or cancel the order
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", "Bearer " + otherToken))

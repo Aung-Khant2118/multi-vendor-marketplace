@@ -6,11 +6,13 @@ public class CartItemResponse {
     private Long productId;
     private String productName;
     private String productSlug;
-    private String sku;
+    private String variantLabel;
     private java.math.BigDecimal unitPrice;
     private Integer quantity;
     private java.math.BigDecimal subtotal;
     private String imageUrl;
+    private Long vendorId;
+    private String vendorName;
 
     public CartItemResponse() {}
 
@@ -22,8 +24,8 @@ public class CartItemResponse {
     public void setProductName(String productName) { this.productName = productName; }
     public String getProductSlug() { return productSlug; }
     public void setProductSlug(String productSlug) { this.productSlug = productSlug; }
-    public String getSku() { return sku; }
-    public void setSku(String sku) { this.sku = sku; }
+    public String getVariantLabel() { return variantLabel; }
+    public void setVariantLabel(String variantLabel) { this.variantLabel = variantLabel; }
     public java.math.BigDecimal getUnitPrice() { return unitPrice; }
     public void setUnitPrice(java.math.BigDecimal unitPrice) { this.unitPrice = unitPrice; }
     public Integer getQuantity() { return quantity; }
@@ -32,4 +34,8 @@ public class CartItemResponse {
     public void setSubtotal(java.math.BigDecimal subtotal) { this.subtotal = subtotal; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public Long getVendorId() { return vendorId; }
+    public void setVendorId(Long vendorId) { this.vendorId = vendorId; }
+    public String getVendorName() { return vendorName; }
+    public void setVendorName(String vendorName) { this.vendorName = vendorName; }
 }

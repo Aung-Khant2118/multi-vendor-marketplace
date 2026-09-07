@@ -50,7 +50,7 @@ public class MailService {
     private void send(String to, String subject, String body) {
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
-            log.warn("[MailService] SMTP not configured - logging message for {}\n  Subject: {}\n  Body:\n{}", to, subject, body);
+            log.info("[MailService] SMTP not configured - logging message for {}\n  Subject: {}", to, subject);
             return;
         }
 

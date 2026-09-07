@@ -1,13 +1,21 @@
 package com.group5.marketplace.vendor.dto;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
+
 public class VendorProfileRequest {
 
+    @Size(min = 2, max = 200)
     private String storeName;
 
+    @Size(max = 2000)
     private String description;
 
+    @Email
+    @Size(max = 255)
     private String businessEmail;
 
+    @Size(max = 20)
     private String businessPhone;
 
     public VendorProfileRequest() {}

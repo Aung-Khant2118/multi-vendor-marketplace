@@ -46,8 +46,25 @@ public class ProductImageService {
                     .build();
             return imageRepository.save(img);
         } catch (IOException | InterruptedException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload image");
+            log.error("Image upload failed for product {}: {}", productId, e.getMessage(), e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to upload image: " + e.getMessage());
         }
+    }
+
+    public ProductImage saveUrl(Long productId, String url, Long vendorId) {
+        Product p = productRepository.findById(productId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+
+        if (p.getVendorId() == null || !p.getVendorId().equals(vendorId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not owner");
+        }
+
+        ProductImage img = ProductImage.builder()
+                .product(p)
+                .url(url)
+                .uploaderId(vendorId)
+                .build();
+        return imageRepository.save(img);
     }
 
     public void deleteImage(Long productId, Long imageId, Long vendorId) {

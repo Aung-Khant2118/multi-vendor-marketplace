@@ -41,4 +41,13 @@ public class CartController {
         body.put("data", orderService.addToCart(userId, request));
         return ResponseEntity.ok(body);
     }
+
+    @DeleteMapping("/cart/items/{variantId}")
+    public ResponseEntity<Map<String, Object>> removeFromCart(@PathVariable Long variantId, Principal principal) {
+        Long userId = currentUserService.getCurrentUserId(principal);
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("data", orderService.removeFromCart(userId, variantId));
+        return ResponseEntity.ok(body);
+    }
 }

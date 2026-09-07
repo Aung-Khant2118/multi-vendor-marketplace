@@ -176,6 +176,10 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
+        if (user.getRole() == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "User role is not set");
+        }
+
         String newToken = jwtService.generateToken(user.getEmail(), user.getRole().name());
         String newRefreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getRole().name());
 

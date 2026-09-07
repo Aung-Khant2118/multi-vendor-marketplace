@@ -7,7 +7,7 @@ public class OrderItemResponse {
     private Long productId;
     private String productName;
     private String productSlug;
-    private String sku;
+    private String variantLabel;
     private java.math.BigDecimal unitPrice;
     private Integer quantity;
     private java.math.BigDecimal subtotal;
@@ -25,8 +25,8 @@ public class OrderItemResponse {
     public void setProductName(String productName) { this.productName = productName; }
     public String getProductSlug() { return productSlug; }
     public void setProductSlug(String productSlug) { this.productSlug = productSlug; }
-    public String getSku() { return sku; }
-    public void setSku(String sku) { this.sku = sku; }
+    public String getVariantLabel() { return variantLabel; }
+    public void setVariantLabel(String variantLabel) { this.variantLabel = variantLabel; }
     public java.math.BigDecimal getUnitPrice() { return unitPrice; }
     public void setUnitPrice(java.math.BigDecimal unitPrice) { this.unitPrice = unitPrice; }
     public Integer getQuantity() { return quantity; }

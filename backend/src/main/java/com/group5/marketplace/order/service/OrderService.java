@@ -28,6 +28,10 @@ import com.group5.marketplace.notification.service.NotificationService;
 import com.group5.marketplace.promotion.entity.Coupon;
 import com.group5.marketplace.promotion.repository.CouponRepository;
 import com.group5.marketplace.promotion.service.CouponService;
+import com.group5.marketplace.user.entity.User;
+import com.group5.marketplace.user.repository.UserRepository;
+import com.group5.marketplace.vendor.entity.Vendor;
+import com.group5.marketplace.vendor.repository.VendorRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,9 +40,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,13 +59,16 @@ public class OrderService {
     private final NotificationService notificationService;
     private final CouponService couponService;
     private final CouponRepository couponRepository;
+    private final VendorRepository vendorRepository;
+    private final UserRepository userRepository;
 
     public OrderService(CartRepository cartRepository, CartItemRepository cartItemRepository,
                         ProductVariantRepository variantRepository, ProductRepository productRepository,
                         AddressRepository addressRepository, OrderRepository orderRepository,
                         OrderItemRepository orderItemRepository, PaymentRepository paymentRepository,
                         CheckoutProperties checkoutProperties, NotificationService notificationService,
-                        CouponService couponService, CouponRepository couponRepository) {
+                        CouponService couponService, CouponRepository couponRepository,
+                        VendorRepository vendorRepository, UserRepository userRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
         this.variantRepository = variantRepository;
@@ -75,6 +81,8 @@ public class OrderService {
         this.notificationService = notificationService;
         this.couponService = couponService;
         this.couponRepository = couponRepository;
+        this.vendorRepository = vendorRepository;
+        this.userRepository = userRepository;
     }
 
     private Cart getOrCreateCart(Long userId) {
@@ -112,6 +120,21 @@ public class OrderService {
         item.setQuantity(newQty);
         cartItemRepository.save(item);
 
+        return toCartResponse(cart);
+    }
+
+    @Transactional
+    public CartResponse removeFromCart(Long userId, Long variantId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart not found"));
+
+        ProductVariant variant = variantRepository.findById(variantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Variant not found"));
+
+        CartItem item = cartItemRepository.findByCartAndVariant(cart, variant)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cart item not found"));
+
+        cartItemRepository.delete(item);
         return toCartResponse(cart);
     }
 
@@ -158,12 +181,17 @@ public class OrderService {
         r.setProductId(p.getId());
         r.setProductName(p.getName());
         r.setProductSlug(p.getSlug());
-        r.setSku(v.getSku());
+        r.setVariantLabel(v.getVariantLabel());
         r.setUnitPrice(priceOf(v, p));
         r.setQuantity(item.getQuantity());
         r.setSubtotal(r.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         if (p.getImages() != null && !p.getImages().isEmpty()) {
-            r.setImageUrl(p.getImages().get(0).getUrl());
+            r.setImageUrl(p.getImages().iterator().next().getUrl());
+        }
+        r.setVendorId(p.getVendorId());
+        if (p.getVendorId() != null) {
+            vendorRepository.findById(p.getVendorId())
+                    .ifPresent(vendor -> r.setVendorName(vendor.getStoreName()));
         }
         return r;
     }
@@ -173,7 +201,7 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse checkout(Long userId, CreateOrderRequest request) {
+    public List<OrderResponse> checkout(Long userId, CreateOrderRequest request) {
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cart is empty"));
 
@@ -192,17 +220,8 @@ public class OrderService {
 
         PaymentMethod method = parseMethod(request.getPaymentMethod());
 
-        Order order = new Order();
-        order.setUserId(userId);
-        order.setShippingAddressId(shippingAddress.getId());
-        order.setBillingAddressId(billingAddress.getId());
-        order.setShippingAddressSnapshot(toSnapshot(shippingAddress));
-        order.setBillingAddressSnapshot(toSnapshot(billingAddress));
-        order.setNotes(request.getNotes());
-        order = orderRepository.save(order);
-
-        BigDecimal subtotal = BigDecimal.ZERO;
-        List<OrderItem> orderItems = new ArrayList<>();
+        // Group cart items by vendorId
+        Map<Long, List<CartItem>> itemsByVendor = new LinkedHashMap<>();
         for (CartItem item : items) {
             ProductVariant v = item.getVariant();
             if (v == null) {
@@ -212,70 +231,129 @@ public class OrderService {
             if (p == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product variant references a missing product");
             }
-            int qty = item.getQuantity();
-            int available = v.getStock() == null ? 0 : v.getStock();
-            if (available < qty) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Insufficient stock for " + (p.getName() != null ? p.getName() : "item"));
+            Long vendorId = p.getVendorId();
+            if (vendorId == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product has no vendor assigned");
             }
-            BigDecimal unitPrice = priceOf(v, p);
-            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(qty));
-            subtotal = subtotal.add(lineTotal);
-
-            OrderItem oi = new OrderItem();
-            oi.setOrder(order);
-            oi.setVariantId(v.getId());
-            oi.setVendorId(p.getVendorId());
-            oi.setQuantity(qty);
-            oi.setUnitPrice(unitPrice);
-            oi.setSubtotal(lineTotal);
-            orderItems.add(oi);
-
-            v.setStock(available - qty);
-            variantRepository.save(v);
+            itemsByVendor.computeIfAbsent(vendorId, k -> new ArrayList<>()).add(item);
         }
 
-        BigDecimal shippingCost = computeShipping(subtotal);
-        BigDecimal tax = computeTax(subtotal);
+        // Compute the total cart subtotal before splitting by vendor, so the coupon
+        // is applied (and its usedCount incremented) exactly once against the full amount.
+        BigDecimal cartSubtotal = BigDecimal.ZERO;
+        for (List<CartItem> vendorItems : itemsByVendor.values()) {
+            for (CartItem item : vendorItems) {
+                ProductVariant v = item.getVariant();
+                Product p = v.getProduct();
+                BigDecimal unitPrice = priceOf(v, p);
+                cartSubtotal = cartSubtotal.add(unitPrice.multiply(BigDecimal.valueOf(item.getQuantity())));
+            }
+        }
 
-        BigDecimal discount = BigDecimal.ZERO;
+        // Resolve coupon once (before the vendor loop)
+        BigDecimal totalDiscount = BigDecimal.ZERO;
         String couponCode = null;
+        Coupon coupon = null;
         if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
-            Coupon coupon = couponRepository.findByCodeIgnoreCase(request.getCouponCode().trim())
+            coupon = couponRepository.findByCodeIgnoreCase(request.getCouponCode().trim())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid coupon code"));
             couponService.applyCoupon(coupon.getCode());
-            discount = couponService.calculateDiscount(coupon, subtotal);
+            totalDiscount = couponService.calculateDiscount(coupon, cartSubtotal);
             couponCode = coupon.getCode();
         }
 
-        BigDecimal total = subtotal.add(shippingCost).add(tax).subtract(discount);
+        List<OrderResponse> responses = new ArrayList<>();
 
-        order.setSubtotal(subtotal);
-        order.setShippingCost(shippingCost);
-        order.setTax(tax);
-        order.setDiscount(discount);
-        order.setCouponCode(couponCode);
-        order.setTotal(total);
-        order.setItems(orderItems);
-        orderRepository.save(order);
-        orderItemRepository.saveAll(orderItems);
+        for (Map.Entry<Long, List<CartItem>> entry : itemsByVendor.entrySet()) {
+            Long vendorId = entry.getKey();
+            List<CartItem> vendorItems = entry.getValue();
 
-        Payment payment = new Payment();
-        payment.setOrderId(order.getId());
-        payment.setAmount(total);
-        payment.setMethod(method);
-        payment.setStatus(PaymentStatus.PENDING);
-        if (method != PaymentMethod.CASH_ON_DELIVERY) {
-            // simulated online payment: mark as completed immediately with a transaction id
-            payment.setStatus(PaymentStatus.COMPLETED);
-            payment.setTransactionId("TXN-" + UUID.randomUUID());
-            payment.setPaidAt(LocalDateTime.now());
+            Order order = new Order();
+            order.setUserId(userId);
+            order.setShippingAddressId(shippingAddress.getId());
+            order.setBillingAddressId(billingAddress.getId());
+            order.setShippingAddressSnapshot(toSnapshot(shippingAddress));
+            order.setBillingAddressSnapshot(toSnapshot(billingAddress));
+            order.setNotes(request.getNotes());
+            order = orderRepository.save(order);
+
+            BigDecimal subtotal = BigDecimal.ZERO;
+            List<OrderItem> orderItems = new ArrayList<>();
+            List<ProductVariant> stockUpdates = new ArrayList<>();
+            for (CartItem item : vendorItems) {
+                ProductVariant v = item.getVariant();
+                Product p = v.getProduct();
+
+                ProductVariant locked = variantRepository.findByIdForUpdate(v.getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Variant not found"));
+
+                int qty = item.getQuantity();
+                int available = locked.getStock() == null ? 0 : locked.getStock();
+                if (available < qty) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Insufficient stock for " + (p.getName() != null ? p.getName() : "item"));
+                }
+                BigDecimal unitPrice = priceOf(locked, p);
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(qty));
+                subtotal = subtotal.add(lineTotal);
+
+                OrderItem oi = new OrderItem();
+                oi.setOrder(order);
+                oi.setVariantId(locked.getId());
+                oi.setVendorId(p.getVendorId());
+                oi.setQuantity(qty);
+                oi.setUnitPrice(unitPrice);
+                oi.setSubtotal(lineTotal);
+                orderItems.add(oi);
+
+                locked.setStock(available - qty);
+                stockUpdates.add(locked);
+            }
+
+            BigDecimal shippingCost = computeShipping(subtotal);
+            BigDecimal tax = computeTax(subtotal);
+
+            // Distribute the total discount proportionally across vendor sub-orders
+            BigDecimal discount = BigDecimal.ZERO;
+            if (totalDiscount.compareTo(BigDecimal.ZERO) > 0 && cartSubtotal.compareTo(BigDecimal.ZERO) > 0) {
+                discount = totalDiscount.multiply(subtotal)
+                        .divide(cartSubtotal, 2, RoundingMode.HALF_UP);
+            }
+
+            BigDecimal total = subtotal.add(shippingCost).add(tax).subtract(discount);
+            if (total.compareTo(BigDecimal.ZERO) < 0) {
+                total = BigDecimal.ZERO;
+                discount = subtotal.add(shippingCost).add(tax);
+            }
+
+            order.setSubtotal(subtotal);
+            order.setShippingCost(shippingCost);
+            order.setTax(tax);
+            order.setDiscount(discount);
+            order.setCouponCode(couponCode);
+            order.setTotal(total);
+            order.getItems().addAll(orderItems);
+            orderRepository.save(order);
+            variantRepository.saveAll(stockUpdates);
+
+            Payment payment = new Payment();
+            payment.setOrderId(order.getId());
+            payment.setAmount(total);
+            payment.setMethod(method);
+            payment.setStatus(PaymentStatus.PENDING);
+            if (method != PaymentMethod.CASH_ON_DELIVERY) {
+                payment.setStatus(PaymentStatus.COMPLETED);
+                payment.setTransactionId("TXN-" + UUID.randomUUID());
+                payment.setPaidAt(LocalDateTime.now());
+            }
+            payment = paymentRepository.save(payment);
+
+            responses.add(toOrderResponse(order, payment));
         }
-        payment = paymentRepository.save(payment);
 
         cartItemRepository.deleteByCart(cart);
 
-        return toOrderResponse(order, payment);
+        return responses;
     }
 
     private Address ownedAddress(Long userId, Long addressId, String kind) {
@@ -308,7 +386,7 @@ public class OrderService {
     }
 
     private BigDecimal computeTax(BigDecimal subtotal) {
-        return subtotal.multiply(checkoutProperties.getTaxRate()).setScale(2, RoundingMode.HALF_UP);
+        return BigDecimal.ZERO;
     }
 
     private PaymentMethod parseMethod(String method) {
@@ -335,28 +413,44 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrders(Long userId) {
-        List<OrderResponse> result = new ArrayList<>();
-        for (Order o : orderRepository.findByUserIdOrderByCreatedAtDesc(userId)) {
-            result.add(toOrderResponse(o, paymentRepository.findFirstByOrderIdOrderByIdDesc(o.getId()).orElse(null)));
-        }
-        return result;
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        if (orders.isEmpty()) return List.of();
+
+        Set<Long> orderIds = orders.stream().map(Order::getId).collect(Collectors.toSet());
+        Map<Long, Payment> paymentMap = toLatestPaymentMap(paymentRepository.findLatestByOrderIds(orderIds));
+        Map<Long, List<OrderItem>> itemsMap = loadOrderItemsBatch(orderIds);
+        Map<Long, ProductVariant> variantMap = loadVariantsBatch(itemsMap);
+        Map<Long, Product> productMap = loadProductsBatch(variantMap);
+
+        return orders.stream()
+                .map(o -> toOrderResponse(o, paymentMap.get(o.getId()), null, itemsMap, variantMap, productMap))
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getVendorOrders(Long vendorId) {
-        List<OrderResponse> result = new ArrayList<>();
         List<OrderItem> vendorItems = orderItemRepository.findByVendorIdOrderByCreatedAtDesc(vendorId);
-        java.util.LinkedHashSet<Long> orderIds = vendorItems.stream()
+        if (vendorItems.isEmpty()) return List.of();
+
+        LinkedHashSet<Long> orderIds = vendorItems.stream()
                 .map(oi -> oi.getOrder().getId())
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        for (Long orderId : orderIds) {
-            Order o = orderRepository.findById(orderId).orElse(null);
-            if (o != null) {
-                Payment payment = paymentRepository.findFirstByOrderIdOrderByIdDesc(orderId).orElse(null);
-                result.add(toOrderResponse(o, payment, vendorId));
-            }
-        }
-        return result;
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        Map<Long, Order> orderMap = vendorItems.stream()
+                .map(OrderItem::getOrder)
+                .distinct()
+                .collect(Collectors.toMap(Order::getId, Function.identity()));
+
+        Map<Long, Payment> paymentMap = toLatestPaymentMap(paymentRepository.findLatestByOrderIds(orderIds));
+        Map<Long, List<OrderItem>> itemsMap = loadOrderItemsBatch(orderIds);
+        Map<Long, ProductVariant> variantMap = loadVariantsBatch(itemsMap);
+        Map<Long, Product> productMap = loadProductsBatch(variantMap);
+
+        return orderIds.stream()
+                .map(id -> orderMap.get(id))
+                .filter(Objects::nonNull)
+                .map(o -> toOrderResponse(o, paymentMap.get(o.getId()), vendorId, itemsMap, variantMap, productMap))
+                .collect(Collectors.toList());
     }
 
     @Transactional
@@ -370,16 +464,21 @@ public class OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be cancelled in its current state");
         }
 
-        for (OrderItem oi : orderItemRepository.findByOrder(order)) {
-            ProductVariant v = variantRepository.findById(oi.getVariantId()).orElse(null);
+        List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
+        Set<Long> variantIds = orderItems.stream().map(OrderItem::getVariantId).collect(Collectors.toSet());
+        Map<Long, ProductVariant> variantMap = variantRepository.findAllById(variantIds).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, Function.identity()));
+
+        for (OrderItem oi : orderItems) {
+            ProductVariant v = variantMap.get(oi.getVariantId());
             if (v != null) {
                 int stock = v.getStock() == null ? 0 : v.getStock();
                 v.setStock(stock + oi.getQuantity());
-                variantRepository.save(v);
             }
             oi.setStatus(OrderItemStatus.PENDING);
         }
-        orderItemRepository.saveAll(order.getItems());
+        variantRepository.saveAll(variantMap.values());
+        orderItemRepository.saveAll(orderItems);
 
         order.setStatus(OrderStatus.CANCELED);
         orderRepository.save(order);
@@ -421,9 +520,23 @@ public class OrderService {
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status");
         }
-        if (newStatus == OrderStatus.PENDING) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot set order back to PENDING");
+
+        Map<OrderStatus, OrderStatus> allowedTransitions = Map.of(
+            OrderStatus.PENDING, OrderStatus.CONFIRMED,
+            OrderStatus.CONFIRMED, OrderStatus.PROCESSING,
+            OrderStatus.PROCESSING, OrderStatus.SHIPPED,
+            OrderStatus.SHIPPED, OrderStatus.DELIVERED,
+            OrderStatus.DELIVERED, OrderStatus.COMPLETED
+        );
+
+        OrderStatus expectedNext = allowedTransitions.get(order.getStatus());
+        if (expectedNext == null || expectedNext != newStatus) {
+            String currentLabel = order.getStatus().name().charAt(0) + order.getStatus().name().substring(1).toLowerCase();
+            String targetLabel = newStatus.name().charAt(0) + newStatus.name().substring(1).toLowerCase();
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Cannot transition from " + currentLabel + " to " + targetLabel);
         }
+
         order.setStatus(newStatus);
         orderRepository.save(order);
 
@@ -460,9 +573,11 @@ public class OrderService {
 
     private OrderItemStatus mapToItemStatus(OrderStatus orderStatus) {
         switch (orderStatus) {
-            case CONFIRMED: return OrderItemStatus.PROCESSING;
+            case CONFIRMED: return OrderItemStatus.PENDING;
+            case PROCESSING: return OrderItemStatus.PROCESSING;
             case SHIPPED: return OrderItemStatus.SHIPPED;
             case DELIVERED: return OrderItemStatus.DELIVERED;
+            case COMPLETED: return OrderItemStatus.DELIVERED;
             case REFUNDED: return OrderItemStatus.REFUNDED;
             case CANCELED: return OrderItemStatus.PENDING;
             default: return null;
@@ -474,9 +589,24 @@ public class OrderService {
     }
 
     private OrderResponse toOrderResponse(Order order, Payment payment, Long vendorFilter) {
+        Map<Long, List<OrderItem>> itemsMap = loadOrderItemsBatch(Set.of(order.getId()));
+        Map<Long, ProductVariant> variantMap = loadVariantsBatch(itemsMap);
+        Map<Long, Product> productMap = loadProductsBatch(variantMap);
+        return toOrderResponse(order, payment, vendorFilter, itemsMap, variantMap, productMap);
+    }
+
+    private OrderResponse toOrderResponse(Order order, Payment payment, Long vendorFilter,
+                                           Map<Long, List<OrderItem>> itemsMap,
+                                           Map<Long, ProductVariant> variantMap,
+                                           Map<Long, Product> productMap) {
         OrderResponse r = new OrderResponse();
         r.setId(order.getId());
         r.setUserId(order.getUserId());
+        userRepository.findById(order.getUserId()).ifPresent(user -> {
+            String name = (user.getFirstName() != null ? user.getFirstName() : "") +
+                          (user.getLastName() != null ? " " + user.getLastName() : "");
+            r.setCustomerName(name.trim());
+        });
         r.setStatus(order.getStatus().name());
         r.setSubtotal(order.getSubtotal());
         r.setShippingCost(order.getShippingCost());
@@ -494,12 +624,46 @@ public class OrderService {
             r.setPaymentStatus(payment.getStatus().name());
             r.setPaymentMethod(payment.getMethod().name());
         }
-        List<OrderItemResponse> lines = orderItemRepository.findByOrder(order).stream()
+        List<OrderItem> items = itemsMap.getOrDefault(order.getId(), List.of());
+        List<OrderItemResponse> lines = items.stream()
                 .filter(oi -> vendorFilter == null || vendorFilter.equals(oi.getVendorId()))
-                .map(this::toOrderItemResponse)
+                .map(oi -> toOrderItemResponse(oi, variantMap, productMap))
                 .collect(Collectors.toList());
         r.setItems(lines);
         return r;
+    }
+
+    private Map<Long, Payment> toLatestPaymentMap(List<Payment> payments) {
+        Map<Long, Payment> result = new LinkedHashMap<>();
+        for (Payment p : payments) {
+            result.putIfAbsent(p.getOrderId(), p);
+        }
+        return result;
+    }
+
+    private Map<Long, List<OrderItem>> loadOrderItemsBatch(Set<Long> orderIds) {
+        if (orderIds.isEmpty()) return Map.of();
+        List<OrderItem> allItems = orderItemRepository.findByOrderIdIn(orderIds);
+        return allItems.stream().collect(Collectors.groupingBy(oi -> oi.getOrder().getId()));
+    }
+
+    private Map<Long, ProductVariant> loadVariantsBatch(Map<Long, List<OrderItem>> itemsMap) {
+        Set<Long> variantIds = itemsMap.values().stream()
+                .flatMap(Collection::stream)
+                .map(OrderItem::getVariantId)
+                .collect(Collectors.toSet());
+        if (variantIds.isEmpty()) return Map.of();
+        return variantRepository.findAllById(variantIds).stream()
+                .collect(Collectors.toMap(ProductVariant::getId, Function.identity()));
+    }
+
+    private Map<Long, Product> loadProductsBatch(Map<Long, ProductVariant> variantMap) {
+        Set<Long> productIds = variantMap.values().stream()
+                .map(v -> v.getProduct().getId())
+                .collect(Collectors.toSet());
+        if (productIds.isEmpty()) return Map.of();
+        return productRepository.findByIdIn(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, Function.identity()));
     }
 
     private AddressSnapshotResponse toSnapshotResponse(AddressSnapshot s) {
@@ -517,13 +681,19 @@ public class OrderService {
     }
 
     private OrderItemResponse toOrderItemResponse(OrderItem oi) {
+        return toOrderItemResponse(oi, Map.of(), Map.of());
+    }
+
+    private OrderItemResponse toOrderItemResponse(OrderItem oi,
+                                                   Map<Long, ProductVariant> variantMap,
+                                                   Map<Long, Product> productMap) {
         OrderItemResponse r = new OrderItemResponse();
         r.setId(oi.getId());
         r.setVariantId(oi.getVariantId());
-        ProductVariant v = variantRepository.findById(oi.getVariantId()).orElse(null);
+        ProductVariant v = variantMap.get(oi.getVariantId());
         if (v != null) {
-            r.setSku(v.getSku());
-            Product p = v.getProduct();
+            r.setVariantLabel(v.getVariantLabel());
+            Product p = productMap.get(v.getProduct().getId());
             if (p != null) {
                 r.setProductId(p.getId());
                 r.setProductName(p.getName());

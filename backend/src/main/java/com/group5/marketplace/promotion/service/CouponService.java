@@ -108,8 +108,7 @@ public class CouponService {
     }
 
     public List<CouponResponse> getVendorCoupons(Long vendorId) {
-        return couponRepository.findAll().stream()
-                .filter(c -> vendorId.equals(c.getVendorId()))
+        return couponRepository.findByVendorIdOrderByCreatedAtDesc(vendorId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -160,7 +159,7 @@ public class CouponService {
             throw new ResponseStatusException(
                     org.springframework.http.HttpStatus.BAD_REQUEST, "Coupon code is required");
         }
-        Coupon coupon = couponRepository.findByCodeIgnoreCase(code.trim())
+        Coupon coupon = couponRepository.findByCodeForUpdate(code.trim().toUpperCase())
                 .orElseThrow(() -> new ResponseStatusException(
                         org.springframework.http.HttpStatus.BAD_REQUEST, "Invalid coupon code"));
         coupon.setUsedCount(coupon.getUsedCount() + 1);

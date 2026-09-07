@@ -40,7 +40,7 @@ public class WishlistMapper {
             r.setProductSlug(p.getSlug());
             r.setPrice(p.getPrice() != null ? p.getPrice() : BigDecimal.ZERO);
             if (p.getImages() != null && !p.getImages().isEmpty()) {
-                r.setImageUrl(p.getImages().get(0).getUrl());
+                r.setImageUrl(p.getImages().iterator().next().getUrl());
             }
         }
         return r;

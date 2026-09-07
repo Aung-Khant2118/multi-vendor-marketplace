@@ -1,10 +1,12 @@
 package com.group5.marketplace.promotion.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class ValidateCouponRequest {
 
     @NotBlank(message = "Coupon code is required")
+    @Size(min = 2, max = 50)
     private String code;
 
     private java.math.BigDecimal orderTotal;

@@ -88,14 +88,29 @@ public class ReviewService {
         Review saved = reviewRepository.save(review);
 
         updateVendorRating(orderItem.getVendorId());
+        updateProductRating(productId);
 
-        return toResponse(saved);
+        java.util.Map<Long, String> productNames = java.util.Map.of(productId,
+                productRepository.findById(productId).map(Product::getName).orElse(""));
+        java.util.Map<Long, String> userNames = java.util.Map.of(userId,
+                userRepository.findById(userId).map(u -> u.getFirstName() + " " + u.getLastName()).orElse(""));
+        return toResponse(saved, productNames, userNames);
     }
 
     public Page<ReviewResponse> getProductReviews(Long productId, int page, int size) {
         Page<Review> reviews = reviewRepository.findByProductIdOrderByCreatedAtDesc(
                 productId, PageRequest.of(page, size));
-        return reviews.map(this::toResponse);
+        if (reviews.isEmpty()) return reviews.map(r -> toResponse(r));
+
+        java.util.Set<Long> productIds = reviews.stream().map(Review::getProductId).collect(java.util.stream.Collectors.toSet());
+        java.util.Set<Long> userIds = reviews.stream().map(Review::getUserId).collect(java.util.stream.Collectors.toSet());
+
+        java.util.Map<Long, String> productNames = productRepository.findAllById(productIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Product::getId, Product::getName));
+        java.util.Map<Long, String> userNames = userRepository.findAllById(userIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u.getFirstName() + " " + u.getLastName()));
+
+        return reviews.map(r -> toResponse(r, productNames, userNames));
     }
 
     public ProductRatingResponse getProductRating(Long productId) {
@@ -108,18 +123,32 @@ public class ReviewService {
         return reviewRepository.existsByProductIdAndUserId(productId, userId);
     }
 
+    private void updateProductRating(Long productId) {
+        Product product = productRepository.findById(productId).orElse(null);
+        if (product == null) return;
+
+        Double avg = reviewRepository.averageRatingByProductId(productId);
+        long count = reviewRepository.countByProductId(productId);
+
+        product.setAverageRating(avg != null ? Math.round(avg * 10.0) / 10.0 : null);
+        product.setReviewCount((int) count);
+        productRepository.save(product);
+    }
+
     private void updateVendorRating(Long vendorId) {
         Vendor vendor = vendorRepository.findById(vendorId).orElse(null);
         if (vendor == null) return;
 
-        var products = productRepository.findByVendorId(vendorId);
-        if (products.isEmpty()) return;
+        java.util.List<Long> productIds = productRepository.findIdsByVendorId(vendorId);
+        if (productIds.isEmpty()) return;
+
+        java.util.List<Object[]> aggregates = reviewRepository.aggregateByProductIds(new java.util.HashSet<>(productIds));
 
         double totalRating = 0;
         int totalCount = 0;
-        for (Product p : products) {
-            Double avg = reviewRepository.averageRatingByProductId(p.getId());
-            long count = reviewRepository.countByProductId(p.getId());
+        for (Object[] row : aggregates) {
+            Double avg = row[1] != null ? ((Number) row[1]).doubleValue() : null;
+            Long count = row[2] != null ? ((Number) row[2]).longValue() : 0L;
             if (avg != null && count > 0) {
                 totalRating += avg * count;
                 totalCount += count;
@@ -137,16 +166,21 @@ public class ReviewService {
     }
 
     private ReviewResponse toResponse(Review review) {
-        String productName = null;
-        Product product = productRepository.findById(review.getProductId()).orElse(null);
-        if (product != null) {
-            productName = product.getName();
+        return toResponse(review, java.util.Map.of(), java.util.Map.of());
+    }
+
+    private ReviewResponse toResponse(Review review, java.util.Map<Long, String> productNames, java.util.Map<Long, String> userNames) {
+        String productName = productNames.getOrDefault(review.getProductId(), null);
+        if (productName == null) {
+            productName = productRepository.findById(review.getProductId()).map(Product::getName).orElse(null);
         }
 
-        String userName = null;
-        User user = userRepository.findById(review.getUserId()).orElse(null);
-        if (user != null) {
-            userName = user.getFirstName() + " " + user.getLastName();
+        String userName = userNames.getOrDefault(review.getUserId(), null);
+        if (userName == null) {
+            User user = userRepository.findById(review.getUserId()).orElse(null);
+            if (user != null) {
+                userName = user.getFirstName() + " " + user.getLastName();
+            }
         }
 
         return new ReviewResponse(

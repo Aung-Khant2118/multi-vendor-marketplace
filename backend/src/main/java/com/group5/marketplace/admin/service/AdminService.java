@@ -1,11 +1,16 @@
 package com.group5.marketplace.admin.service;
 
+import com.group5.marketplace.admin.dto.AdminAnalyticsResponse;
 import com.group5.marketplace.admin.dto.AdminDashboardResponse;
 import com.group5.marketplace.admin.dto.AdminUserResponse;
 import com.group5.marketplace.admin.dto.AdminVendorResponse;
 import com.group5.marketplace.audit.service.AuditService;
 import com.group5.marketplace.notification.entity.Notification.NotificationType;
 import com.group5.marketplace.notification.service.NotificationService;
+import com.group5.marketplace.category.dto.CategoryResponse;
+import com.group5.marketplace.category.entity.Category;
+import com.group5.marketplace.category.mapper.CategoryMapper;
+import com.group5.marketplace.category.repository.CategoryRepository;
 import com.group5.marketplace.order.entity.PaymentStatus;
 import com.group5.marketplace.order.repository.OrderRepository;
 import com.group5.marketplace.order.repository.PaymentRepository;
@@ -21,6 +26,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class AdminService {
@@ -30,6 +39,8 @@ public class AdminService {
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
+    private final CategoryRepository categoryRepository;
+    private final CategoryMapper categoryMapper;
     private final AuditService auditService;
     private final NotificationService notificationService;
 
@@ -38,6 +49,8 @@ public class AdminService {
                         ProductRepository productRepository,
                         OrderRepository orderRepository,
                         PaymentRepository paymentRepository,
+                        CategoryRepository categoryRepository,
+                        CategoryMapper categoryMapper,
                         AuditService auditService,
                         NotificationService notificationService) {
         this.userRepository = userRepository;
@@ -45,6 +58,8 @@ public class AdminService {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.paymentRepository = paymentRepository;
+        this.categoryRepository = categoryRepository;
+        this.categoryMapper = categoryMapper;
         this.auditService = auditService;
         this.notificationService = notificationService;
     }
@@ -58,14 +73,74 @@ public class AdminService {
         long totalProducts = productRepository.count();
         long totalOrders = orderRepository.count();
 
-        BigDecimal totalRevenue = paymentRepository
-                .findByStatus(PaymentStatus.COMPLETED)
-                .stream()
-                .map(p -> p.getAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalRevenue = paymentRepository.sumAmountByStatus(PaymentStatus.COMPLETED);
 
         return new AdminDashboardResponse(totalUsers, totalVendors, pendingVendors,
                 totalProducts, totalOrders, totalRevenue);
+    }
+
+    public AdminAnalyticsResponse getAnalytics() {
+        LocalDateTime since = LocalDateTime.now().minusMonths(12);
+
+        // Monthly revenue from completed payments
+        List<Object[]> revenueRows = paymentRepository.sumAmountByStatusAndMonth(PaymentStatus.COMPLETED.name(), since);
+        List<AdminAnalyticsResponse.MonthlyData> monthlyRevenue = revenueRows.stream()
+                .map(r -> new AdminAnalyticsResponse.MonthlyData(asMonthKey(r[0]), asBigDecimal(r[1])))
+                .collect(Collectors.toList());
+
+        // Monthly orders
+        List<Object[]> orderRows = orderRepository.countOrdersByMonth(since);
+        List<AdminAnalyticsResponse.MonthlyData> monthlyOrders = orderRows.stream()
+                .map(r -> new AdminAnalyticsResponse.MonthlyData(asMonthKey(r[0]), asBigDecimal(r[1])))
+                .collect(Collectors.toList());
+
+        // Monthly vendor registrations
+        List<Object[]> vendorRows = vendorRepository.countVendorsByMonth(since);
+        List<AdminAnalyticsResponse.MonthlyData> monthlyVendors = vendorRows.stream()
+                .map(r -> new AdminAnalyticsResponse.MonthlyData(asMonthKey(r[0]), asBigDecimal(r[1])))
+                .collect(Collectors.toList());
+
+        // Orders by status
+        List<Object[]> statusRows = orderRepository.countByStatusGroup();
+        Map<String, Long> ordersByStatus = new HashMap<>();
+        for (Object[] row : statusRows) {
+            ordersByStatus.put(row[0].toString(), asLong(row[1]));
+        }
+
+        // Users by role
+        List<Object[]> roleRows = userRepository.countByRoleGroup();
+        Map<String, Long> usersByRole = new HashMap<>();
+        for (Object[] row : roleRows) {
+            usersByRole.put(row[0].toString(), asLong(row[1]));
+        }
+
+        return new AdminAnalyticsResponse(monthlyRevenue, monthlyOrders, monthlyVendors,
+                ordersByStatus, usersByRole);
+    }
+
+    private static String asMonthKey(Object value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static BigDecimal asBigDecimal(Object value) {
+        if (value == null) return BigDecimal.ZERO;
+        if (value instanceof BigDecimal bd) return bd;
+        if (value instanceof Number n) return BigDecimal.valueOf(n.doubleValue());
+        return new BigDecimal(value.toString());
+    }
+
+    private static long asLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number n) return n.longValue();
+        return Long.parseLong(value.toString());
+    }
+
+    // ─── Categories ─────────────────────────────────────────────
+
+    public java.util.List<CategoryResponse> listCategories() {
+        return categoryRepository.findAll().stream()
+                .map(categoryMapper::toResponse)
+                .toList();
     }
 
     // ─── User management ─────────────────────────────────────────
@@ -125,7 +200,14 @@ public class AdminService {
         } else {
             vendors = vendorRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size));
         }
-        return vendors.map(this::toVendorResponse);
+
+        java.util.Set<Long> userIds = vendors.stream()
+                .map(Vendor::getUserId)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.Map<Long, User> userMap = userRepository.findAllById(userIds).stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
+
+        return vendors.map(v -> toVendorResponse(v, userMap.get(v.getUserId())));
     }
 
     public AdminVendorResponse getVendor(Long vendorId) {
@@ -238,6 +320,10 @@ public class AdminService {
 
     private AdminVendorResponse toVendorResponse(Vendor vendor) {
         User user = userRepository.findById(vendor.getUserId()).orElse(null);
+        return toVendorResponse(vendor, user);
+    }
+
+    private AdminVendorResponse toVendorResponse(Vendor vendor, User user) {
         return new AdminVendorResponse(
                 vendor.getId(),
                 vendor.getUserId(),

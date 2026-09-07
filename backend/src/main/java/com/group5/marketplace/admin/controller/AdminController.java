@@ -1,5 +1,6 @@
 package com.group5.marketplace.admin.controller;
 
+import com.group5.marketplace.admin.dto.AdminAnalyticsResponse;
 import com.group5.marketplace.admin.dto.AdminDashboardResponse;
 import com.group5.marketplace.admin.dto.AdminUserResponse;
 import com.group5.marketplace.admin.dto.AdminVendorResponse;
@@ -7,6 +8,7 @@ import com.group5.marketplace.admin.dto.UpdateUserStatusRequest;
 import com.group5.marketplace.admin.service.AdminService;
 import com.group5.marketplace.audit.entity.AuditLog;
 import com.group5.marketplace.audit.service.AuditService;
+import com.group5.marketplace.category.dto.CategoryResponse;
 import com.group5.marketplace.user.util.CurrentUserService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -38,6 +40,24 @@ public class AdminController {
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
         body.put("data", data);
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/analytics")
+    public ResponseEntity<Map<String, Object>> analytics() {
+        AdminAnalyticsResponse data = adminService.getAnalytics();
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("data", data);
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<Map<String, Object>> listCategories() {
+        java.util.List<CategoryResponse> categories = adminService.listCategories();
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("data", categories);
         return ResponseEntity.ok(body);
     }
 

@@ -2,30 +2,39 @@ package com.group5.marketplace.address.dto;
 
 import com.group5.marketplace.address.entity.Address.AddressType;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class AddressRequest {
 
     public interface OnCreate {}
 
     @NotBlank(groups = OnCreate.class)
+    @Size(min = 1, max = 200)
     private String recipientName;
 
     @NotBlank(groups = OnCreate.class)
+    @Size(min = 1, max = 20)
     private String phone;
 
     @NotBlank(groups = OnCreate.class)
+    @Size(min = 1, max = 300)
     private String line1;
 
+    @Size(max = 300)
     private String line2;
 
     @NotBlank(groups = OnCreate.class)
+    @Size(min = 1, max = 100)
     private String city;
 
+    @Size(max = 100)
     private String region;
 
+    @Size(max = 20)
     private String postalCode;
 
     @NotBlank(groups = OnCreate.class)
+    @Size(min = 1, max = 100)
     private String country;
 
     private AddressType addressType;

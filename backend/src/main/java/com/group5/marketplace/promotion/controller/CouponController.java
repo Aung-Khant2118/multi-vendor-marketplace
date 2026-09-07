@@ -6,10 +6,13 @@ import com.group5.marketplace.promotion.dto.CouponValidationResponse;
 import com.group5.marketplace.promotion.dto.ValidateCouponRequest;
 import com.group5.marketplace.promotion.service.CouponService;
 import com.group5.marketplace.user.util.CurrentUserService;
+import com.group5.marketplace.vendor.entity.Vendor;
+import com.group5.marketplace.vendor.repository.VendorRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
 import java.util.HashMap;
@@ -22,10 +25,19 @@ public class CouponController {
 
     private final CouponService couponService;
     private final CurrentUserService currentUserService;
+    private final VendorRepository vendorRepository;
 
-    public CouponController(CouponService couponService, CurrentUserService currentUserService) {
+    public CouponController(CouponService couponService, CurrentUserService currentUserService, VendorRepository vendorRepository) {
         this.couponService = couponService;
         this.currentUserService = currentUserService;
+        this.vendorRepository = vendorRepository;
+    }
+
+    private Long resolveVendorId(Principal principal) {
+        Long userId = currentUserService.getCurrentUserId(principal);
+        Vendor vendor = vendorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vendor profile not found"));
+        return vendor.getId();
     }
 
     @PostMapping("/vendor/coupons")
@@ -33,7 +45,7 @@ public class CouponController {
     public ResponseEntity<Map<String, Object>> createCoupon(
             @Valid @RequestBody CouponRequest request,
             Principal principal) {
-        Long vendorId = currentUserService.getCurrentUserId(principal);
+        Long vendorId = resolveVendorId(principal);
         CouponResponse coupon = couponService.createCoupon(vendorId, request);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
@@ -48,7 +60,7 @@ public class CouponController {
             @PathVariable Long id,
             @Valid @RequestBody CouponRequest request,
             Principal principal) {
-        Long vendorId = currentUserService.getCurrentUserId(principal);
+        Long vendorId = resolveVendorId(principal);
         CouponResponse coupon = couponService.updateCoupon(vendorId, id, request);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
@@ -62,7 +74,7 @@ public class CouponController {
     public ResponseEntity<Map<String, Object>> toggleCoupon(
             @PathVariable Long id,
             Principal principal) {
-        Long vendorId = currentUserService.getCurrentUserId(principal);
+        Long vendorId = resolveVendorId(principal);
         couponService.toggleCoupon(vendorId, id);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
@@ -73,7 +85,7 @@ public class CouponController {
     @GetMapping("/vendor/coupons")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Map<String, Object>> listVendorCoupons(Principal principal) {
-        Long vendorId = currentUserService.getCurrentUserId(principal);
+        Long vendorId = resolveVendorId(principal);
         List<CouponResponse> coupons = couponService.getVendorCoupons(vendorId);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);

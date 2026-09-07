@@ -29,11 +29,11 @@ public class OrderController {
     @PostMapping("/orders")
     public ResponseEntity<Map<String, Object>> checkout(@Valid @RequestBody CreateOrderRequest request, Principal principal) {
         Long userId = currentUserService.getCurrentUserId(principal);
-        OrderResponse order = orderService.checkout(userId, request);
+        List<OrderResponse> orders = orderService.checkout(userId, request);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
-        body.put("message", "Order placed successfully");
-        body.put("data", order);
+        body.put("message", "Order" + (orders.size() > 1 ? "s" : "") + " placed successfully");
+        body.put("data", orders);
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 

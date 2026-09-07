@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "products")
@@ -32,13 +33,17 @@ private BigDecimal price;
 @JoinColumn(name = "category_id")
 private Category category;
 
-private Long vendorId; // reference to user id who owns the product
+    private Long vendorId; // references vendors.id (vendor's own PK)
+
+    private Double averageRating;
+
+    private Integer reviewCount = 0;
 
 @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
 private List<ProductVariant> variants;
 
 @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-private List<ProductImage> images;
+private Set<ProductImage> images;
 
 @CreationTimestamp
 private LocalDateTime createdAt;
@@ -48,7 +53,7 @@ private LocalDateTime updatedAt;
 
 public Product() {}
 
-public Product(Long id, String name, String slug, String description, BigDecimal price, Category category, Long vendorId, List<ProductVariant> variants, List<ProductImage> images, LocalDateTime createdAt, LocalDateTime updatedAt) {
+public Product(Long id, String name, String slug, String description, BigDecimal price, Category category, Long vendorId, Double averageRating, Integer reviewCount, List<ProductVariant> variants, Set<ProductImage> images, LocalDateTime createdAt, LocalDateTime updatedAt) {
     this.id = id;
     this.name = name;
     this.slug = slug;
@@ -56,6 +61,8 @@ public Product(Long id, String name, String slug, String description, BigDecimal
     this.price = price;
     this.category = category;
     this.vendorId = vendorId;
+    this.averageRating = averageRating;
+    this.reviewCount = reviewCount;
     this.variants = variants;
     this.images = images;
     this.createdAt = createdAt;
@@ -76,10 +83,14 @@ public Category getCategory() { return category; }
 public void setCategory(Category category) { this.category = category; }
 public Long getVendorId() { return vendorId; }
 public void setVendorId(Long vendorId) { this.vendorId = vendorId; }
+public Double getAverageRating() { return averageRating; }
+public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
+public Integer getReviewCount() { return reviewCount; }
+public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
 public List<ProductVariant> getVariants() { return variants; }
 public void setVariants(List<ProductVariant> variants) { this.variants = variants; }
-public List<ProductImage> getImages() { return images; }
-public void setImages(List<ProductImage> images) { this.images = images; }
+public Set<ProductImage> getImages() { return images; }
+public void setImages(Set<ProductImage> images) { this.images = images; }
 public LocalDateTime getCreatedAt() { return createdAt; }
 public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -87,7 +98,7 @@ public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; 
 
 public static Builder builder() { return new Builder(); }
 public static class Builder {
-    private Long id; private String name; private String slug; private String description; private BigDecimal price; private Category category; private Long vendorId; private java.util.List<ProductVariant> variants; private java.util.List<ProductImage> images; private LocalDateTime createdAt; private LocalDateTime updatedAt;
+    private Long id; private String name; private String slug; private String description; private BigDecimal price; private Category category; private Long vendorId; private Double averageRating; private Integer reviewCount; private java.util.List<ProductVariant> variants; private java.util.Set<ProductImage> images; private LocalDateTime createdAt; private LocalDateTime updatedAt;
     public Builder id(Long id){ this.id=id; return this; }
     public Builder name(String name){ this.name=name; return this; }
     public Builder slug(String slug){ this.slug=slug; return this; }
@@ -95,10 +106,12 @@ public static class Builder {
     public Builder price(BigDecimal price){ this.price=price; return this; }
     public Builder category(Category category){ this.category=category; return this; }
     public Builder vendorId(Long vendorId){ this.vendorId=vendorId; return this; }
+    public Builder averageRating(Double averageRating){ this.averageRating=averageRating; return this; }
+    public Builder reviewCount(Integer reviewCount){ this.reviewCount=reviewCount; return this; }
     public Builder variants(java.util.List<ProductVariant> variants){ this.variants=variants; return this; }
-    public Builder images(java.util.List<ProductImage> images){ this.images=images; return this; }
+    public Builder images(java.util.Set<ProductImage> images){ this.images=images; return this; }
     public Builder createdAt(LocalDateTime createdAt){ this.createdAt=createdAt; return this; }
     public Builder updatedAt(LocalDateTime updatedAt){ this.updatedAt=updatedAt; return this; }
-    public Product build(){ return new Product(id,name,slug,description,price,category,vendorId,variants,images,createdAt,updatedAt); }
+    public Product build(){ return new Product(id,name,slug,description,price,category,vendorId,averageRating,reviewCount,variants,images,createdAt,updatedAt); }
 }
 }

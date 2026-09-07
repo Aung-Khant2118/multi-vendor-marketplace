@@ -2,9 +2,10 @@ package com.group5.marketplace.product.service;
 
 import com.group5.marketplace.product.dto.ProductRequest;
 import com.group5.marketplace.product.dto.ProductResponse;
+import com.group5.marketplace.product.dto.ProductSearchRequest;
+import com.group5.marketplace.product.dto.SearchSuggestion;
 import org.springframework.data.domain.Page;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public interface ProductService {
@@ -19,8 +20,11 @@ public interface ProductService {
 
     List<ProductResponse> getAllByVendor(Long vendorId);
 
-    Page<ProductResponse> search(String q, Long categoryId, BigDecimal priceMin,
-                                 BigDecimal priceMax, String sort, int page, int size);
+    long countByVendorId(Long vendorId);
+
+    Page<ProductResponse> search(ProductSearchRequest request);
+
+    List<SearchSuggestion> autocomplete(String q, int limit);
 
     ProductResponse update(Long id, ProductRequest request, Long vendorId);
 

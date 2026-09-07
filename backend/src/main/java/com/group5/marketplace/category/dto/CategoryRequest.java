@@ -1,17 +1,22 @@
 package com.group5.marketplace.category.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class CategoryRequest {
 
     @NotBlank(message = "Category name is required")
+    @Size(min = 1, max = 200)
     private String name;
 
     @NotBlank(message = "Slug is required")
+    @Size(min = 1, max = 200)
     private String slug;
 
+    @Size(max = 1000)
     private String description;
 
+    @Size(max = 500)
     private String imageUrl;
 
     private Boolean active;

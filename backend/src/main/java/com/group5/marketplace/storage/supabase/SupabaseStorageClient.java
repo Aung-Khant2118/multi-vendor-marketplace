@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.Instant;
 
 @Component
@@ -24,7 +25,9 @@ public class SupabaseStorageClient {
     @Value("${supabase.bucket:product-images}")
     private String bucket;
 
-    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(30))
+            .build();
 
     private void ensureConfigured() throws IOException {
         if (supabaseUrl == null || supabaseUrl.isBlank() || supabaseKey == null || supabaseKey.isBlank()) {
@@ -46,6 +49,7 @@ public class SupabaseStorageClient {
                 .header("Authorization", "Bearer " + supabaseKey)
                 .header("apikey", supabaseKey)
                 .header("Content-Type", file.getContentType() == null ? "application/octet-stream" : file.getContentType())
+                .timeout(Duration.ofSeconds(120))
                 .PUT(HttpRequest.BodyPublishers.ofByteArray(file.getBytes()))
                 .build();
 
@@ -80,6 +84,7 @@ public class SupabaseStorageClient {
                 .uri(URI.create(deleteUrl))
                 .header("Authorization", "Bearer " + supabaseKey)
                 .header("apikey", supabaseKey)
+                .timeout(Duration.ofSeconds(30))
                 .DELETE()
                 .build();
 

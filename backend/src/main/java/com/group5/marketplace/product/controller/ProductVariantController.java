@@ -3,7 +3,9 @@ package com.group5.marketplace.product.controller;
 import com.group5.marketplace.product.dto.ProductVariantRequest;
 import com.group5.marketplace.product.dto.ProductVariantResponse;
 import com.group5.marketplace.product.service.ProductVariantService;
-import com.group5.marketplace.user.repository.UserRepository;
+import com.group5.marketplace.user.util.CurrentUserService;
+import com.group5.marketplace.vendor.entity.Vendor;
+import com.group5.marketplace.vendor.repository.VendorRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,20 +22,20 @@ import java.util.Map;
 public class ProductVariantController {
 
     private final ProductVariantService variantService;
-    private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
+    private final VendorRepository vendorRepository;
 
-    public ProductVariantController(ProductVariantService variantService, UserRepository userRepository) {
+    public ProductVariantController(ProductVariantService variantService, CurrentUserService currentUserService, VendorRepository vendorRepository) {
         this.variantService = variantService;
-        this.userRepository = userRepository;
+        this.currentUserService = currentUserService;
+        this.vendorRepository = vendorRepository;
     }
 
-    private Long getVendorId(java.security.Principal principal) {
-        if (principal == null || principal.getName() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
-        }
-        return userRepository.findByEmail(principal.getName())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"))
-                .getId();
+    private Long resolveVendorId(Principal principal) {
+        Long userId = currentUserService.getCurrentUserId(principal);
+        Vendor vendor = vendorRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vendor profile not found"));
+        return vendor.getId();
     }
 
     @GetMapping("/products/{productId}/variants")
@@ -57,9 +59,8 @@ public class ProductVariantController {
     @PostMapping("/vendor/products/{productId}/variants")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Map<String,Object>> create(@PathVariable Long productId, @Valid @RequestBody ProductVariantRequest request, Principal principal) {
-        // ensure request productId matches path
         request.setProductId(productId);
-        Long vendorId = getVendorId(principal);
+        Long vendorId = resolveVendorId(principal);
         ProductVariantResponse created = variantService.create(request, vendorId);
         Map<String,Object> body = new HashMap<>();
         body.put("success", true);
@@ -71,7 +72,7 @@ public class ProductVariantController {
     @PatchMapping("/vendor/variants/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Map<String,Object>> update(@PathVariable Long id, @Valid @RequestBody ProductVariantRequest request, Principal principal) {
-        Long vendorId = getVendorId(principal);
+        Long vendorId = resolveVendorId(principal);
         ProductVariantResponse updated = variantService.update(id, request, vendorId);
         Map<String,Object> body = new HashMap<>();
         body.put("success", true);
@@ -83,7 +84,7 @@ public class ProductVariantController {
     @PatchMapping("/vendor/variants/{id}/stock")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Map<String,Object>> patchStock(@PathVariable Long id, @RequestParam Integer delta, Principal principal) {
-        Long vendorId = getVendorId(principal);
+        Long vendorId = resolveVendorId(principal);
         variantService.updateStock(id, delta, vendorId);
         Map<String,Object> body = new HashMap<>();
         body.put("success", true);
@@ -94,7 +95,7 @@ public class ProductVariantController {
     @DeleteMapping("/vendor/variants/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Map<String,Object>> delete(@PathVariable Long id, Principal principal) {
-        Long vendorId = getVendorId(principal);
+        Long vendorId = resolveVendorId(principal);
         variantService.delete(id, vendorId);
         Map<String,Object> body = new HashMap<>();
         body.put("success", true);

@@ -18,5 +18,9 @@ public interface ProductVariantService {
     void updateStock(Long id, Integer stockDelta, Long vendorId);
 
     void delete(Long id, Long vendorId);
+
+    long countByVendorId(Long vendorId);
+
+    long sumStockByVendorId(Long vendorId);
 }
 

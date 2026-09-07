@@ -8,11 +8,11 @@ import java.math.BigDecimal;
 /**
  * Configurable checkout pricing rules.
  *
- * Defaults (flat-rate shipping, free shipping above a threshold, percentage tax)
+ * Defaults (flat-rate shipping, free shipping above a threshold, no tax)
  * can be overridden with:
  *   app.checkout.shipping-flat-rate=5.00
  *   app.checkout.free-shipping-threshold=50.00
- *   app.checkout.tax-rate=0.08
+ *   app.checkout.tax-rate=0
  */
 @Component
 @ConfigurationProperties(prefix = "app.checkout")
@@ -22,7 +22,7 @@ public class CheckoutProperties {
 
     private BigDecimal freeShippingThreshold = new BigDecimal("50.00");
 
-    private BigDecimal taxRate = new BigDecimal("0.08");
+    private BigDecimal taxRate = BigDecimal.ZERO;
 
     public BigDecimal getShippingFlatRate() { return shippingFlatRate; }
     public void setShippingFlatRate(BigDecimal shippingFlatRate) { this.shippingFlatRate = shippingFlatRate; }

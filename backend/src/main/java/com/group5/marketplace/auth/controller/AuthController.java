@@ -46,6 +46,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public UserMeResponse me(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof User)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
         User user = (User) authentication.getPrincipal();
         return userMapper.toMeResponse(user);
     }
