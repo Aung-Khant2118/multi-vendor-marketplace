@@ -4,6 +4,7 @@ import com.group5.marketplace.notification.dto.NotificationResponse;
 import com.group5.marketplace.notification.service.NotificationService;
 import com.group5.marketplace.user.util.CurrentUserService;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,9 +54,15 @@ public class NotificationController {
     public ResponseEntity<Map<String, Object>> markAsRead(@PathVariable Long id, Principal principal) {
         Long userId = currentUserService.getCurrentUserId(principal);
         boolean updated = notificationService.markAsRead(userId, id);
+        if (!updated) {
+            Map<String, Object> body = new HashMap<>();
+            body.put("success", false);
+            body.put("message", "Notification not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+        }
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
-        body.put("message", updated ? "Marked as read" : "Notification not found");
+        body.put("message", "Marked as read");
         return ResponseEntity.ok(body);
     }
 

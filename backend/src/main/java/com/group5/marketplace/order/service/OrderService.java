@@ -428,9 +428,13 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> getVendorOrders(Long vendorId) {
-        List<OrderItem> vendorItems = orderItemRepository.findByVendorIdOrderByCreatedAtDesc(vendorId);
-        if (vendorItems.isEmpty()) return List.of();
+    public org.springframework.data.domain.Page<OrderResponse> getVendorOrders(Long vendorId, int page, int size) {
+        org.springframework.data.domain.PageRequest pageRequest = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<OrderItem> vendorItemPage =
+                orderItemRepository.findByVendorIdOrderByCreatedAtDesc(vendorId, pageRequest);
+        if (vendorItemPage.isEmpty()) return org.springframework.data.domain.Page.empty(pageRequest);
+
+        List<OrderItem> vendorItems = vendorItemPage.getContent();
 
         LinkedHashSet<Long> orderIds = vendorItems.stream()
                 .map(oi -> oi.getOrder().getId())
@@ -446,58 +450,47 @@ public class OrderService {
         Map<Long, ProductVariant> variantMap = loadVariantsBatch(itemsMap);
         Map<Long, Product> productMap = loadProductsBatch(variantMap);
 
-        return orderIds.stream()
+        List<OrderResponse> responses = orderIds.stream()
                 .map(id -> orderMap.get(id))
                 .filter(Objects::nonNull)
                 .map(o -> toOrderResponse(o, paymentMap.get(o.getId()), vendorId, itemsMap, variantMap, productMap))
                 .collect(Collectors.toList());
+
+        return new org.springframework.data.domain.PageImpl<>(responses, pageRequest, vendorItemPage.getTotalElements());
     }
 
-    @Transactional
-    public OrderResponse cancelOrder(Long userId, Long orderId) {
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<OrderResponse> getAdminOrders(String status, int page, int size) {
+        org.springframework.data.domain.PageRequest pageRequest = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<Order> orders;
+        if (status != null && !status.isBlank()) {
+            OrderStatus orderStatus;
+            try {
+                orderStatus = OrderStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order status: " + status);
+            }
+            orders = orderRepository.findByStatusOrderByCreatedAtDesc(orderStatus, pageRequest);
+        } else {
+            orders = orderRepository.findAllByOrderByCreatedAtDesc(pageRequest);
+        }
+
+        if (orders.isEmpty()) return org.springframework.data.domain.Page.empty(pageRequest);
+
+        Set<Long> orderIds = orders.stream().map(Order::getId).collect(Collectors.toSet());
+        Map<Long, Payment> paymentMap = toLatestPaymentMap(paymentRepository.findLatestByOrderIds(orderIds));
+        Map<Long, List<OrderItem>> itemsMap = loadOrderItemsBatch(orderIds);
+        Map<Long, ProductVariant> variantMap = loadVariantsBatch(itemsMap);
+        Map<Long, Product> productMap = loadProductsBatch(variantMap);
+
+        return orders.map(o -> toOrderResponse(o, paymentMap.get(o.getId()), null, itemsMap, variantMap, productMap));
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponse getAdminOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        if (!order.getUserId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your order");
-        }
-        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.CONFIRMED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order cannot be cancelled in its current state");
-        }
-
-        List<OrderItem> orderItems = orderItemRepository.findByOrder(order);
-        Set<Long> variantIds = orderItems.stream().map(OrderItem::getVariantId).collect(Collectors.toSet());
-        Map<Long, ProductVariant> variantMap = variantRepository.findAllById(variantIds).stream()
-                .collect(Collectors.toMap(ProductVariant::getId, Function.identity()));
-
-        for (OrderItem oi : orderItems) {
-            ProductVariant v = variantMap.get(oi.getVariantId());
-            if (v != null) {
-                int stock = v.getStock() == null ? 0 : v.getStock();
-                v.setStock(stock + oi.getQuantity());
-            }
-            oi.setStatus(OrderItemStatus.PENDING);
-        }
-        variantRepository.saveAll(variantMap.values());
-        orderItemRepository.saveAll(orderItems);
-
-        order.setStatus(OrderStatus.CANCELED);
-        orderRepository.save(order);
-
-        Payment payment = paymentRepository.findFirstByOrderIdOrderByIdDesc(orderId).orElse(null);
-        if (payment != null && payment.getStatus() == PaymentStatus.COMPLETED) {
-            payment.setStatus(PaymentStatus.REFUNDED);
-            payment = paymentRepository.save(payment);
-        }
-
-        notificationService.send(
-                userId,
-                NotificationType.ORDER_UPDATE,
-                "Order Cancelled",
-                "Your order #" + orderId + " has been cancelled.",
-                orderId,
-                "Order"
-        );
-
+        Payment payment = paymentRepository.findFirstByOrderIdOrderByIdDesc(order.getId()).orElse(null);
         return toOrderResponse(order, payment);
     }
 
@@ -552,9 +545,6 @@ public class OrderService {
                 payment.setStatus(PaymentStatus.COMPLETED);
                 payment.setPaidAt(LocalDateTime.now());
                 payment = paymentRepository.save(payment);
-            } else if (newStatus == OrderStatus.REFUNDED && payment.getStatus() == PaymentStatus.COMPLETED) {
-                payment.setStatus(PaymentStatus.REFUNDED);
-                payment = paymentRepository.save(payment);
             }
         }
 
@@ -571,15 +561,90 @@ public class OrderService {
         return toOrderResponse(order, payment);
     }
 
+    @Transactional
+    public OrderResponse cancelOrder(Long orderId, CancelOrderRequest request, String actorRole, Long actorUserId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is already cancelled");
+        }
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot cancel a completed order");
+        }
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot cancel an order that has been delivered");
+        }
+
+        if ("CUSTOMER".equals(actorRole)) {
+            if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.CONFIRMED) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "You can only cancel orders in Pending or Confirmed status");
+            }
+        } else if ("VENDOR".equals(actorRole)) {
+            if (order.getStatus() != OrderStatus.PENDING) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Vendors can only cancel orders in Pending status");
+            }
+            List<OrderItem> vendorItems = orderItemRepository.findByOrder(order).stream()
+                    .filter(oi -> actorUserId.equals(oi.getVendorId()))
+                    .toList();
+            if (vendorItems.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This vendor has no items in the order");
+            }
+        } else if (!"ADMIN".equals(actorRole)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unknown actor role");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancellationReason(request.getReason());
+        order.setCancellationNote(request.getCustomNote());
+        order.setCancelledBy(actorRole);
+        order.setCancelledAt(LocalDateTime.now());
+        orderRepository.save(order);
+
+        List<OrderItem> allItems = orderItemRepository.findByOrder(order);
+        for (OrderItem oi : allItems) {
+            oi.setStatus(OrderItemStatus.CANCELLED);
+        }
+        orderItemRepository.saveAll(allItems);
+
+        for (OrderItem oi : allItems) {
+            variantRepository.findByIdForUpdate(oi.getVariantId()).ifPresent(v -> {
+                v.setStock(v.getStock() + oi.getQuantity());
+                variantRepository.save(v);
+            });
+        }
+
+        Payment payment = paymentRepository.findFirstByOrderIdOrderByIdDesc(orderId).orElse(null);
+        if (payment != null) {
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+        }
+
+        String reasonLabel = request.getReason();
+        notificationService.send(
+                order.getUserId(),
+                NotificationType.ORDER_UPDATE,
+                "Order Cancelled",
+                "Your order #" + orderId + " has been cancelled. Reason: " + reasonLabel
+                    + (request.getCustomNote() != null && !request.getCustomNote().isBlank()
+                        ? ". Note: " + request.getCustomNote() : ""),
+                orderId,
+                "Order"
+        );
+
+        Payment freshPayment = paymentRepository.findFirstByOrderIdOrderByIdDesc(orderId).orElse(null);
+        return toOrderResponse(order, freshPayment);
+    }
+
     private OrderItemStatus mapToItemStatus(OrderStatus orderStatus) {
         switch (orderStatus) {
             case CONFIRMED: return OrderItemStatus.PENDING;
             case PROCESSING: return OrderItemStatus.PROCESSING;
             case SHIPPED: return OrderItemStatus.SHIPPED;
             case DELIVERED: return OrderItemStatus.DELIVERED;
-            case COMPLETED: return OrderItemStatus.DELIVERED;
-            case REFUNDED: return OrderItemStatus.REFUNDED;
-            case CANCELED: return OrderItemStatus.PENDING;
+            case COMPLETED: return OrderItemStatus.COMPLETED;
             default: return null;
         }
     }
@@ -630,6 +695,10 @@ public class OrderService {
                 .map(oi -> toOrderItemResponse(oi, variantMap, productMap))
                 .collect(Collectors.toList());
         r.setItems(lines);
+        r.setCancellationReason(order.getCancellationReason());
+        r.setCancellationNote(order.getCancellationNote());
+        r.setCancelledBy(order.getCancelledBy());
+        r.setCancelledAt(order.getCancelledAt());
         return r;
     }
 
@@ -653,7 +722,7 @@ public class OrderService {
                 .map(OrderItem::getVariantId)
                 .collect(Collectors.toSet());
         if (variantIds.isEmpty()) return Map.of();
-        return variantRepository.findAllById(variantIds).stream()
+        return variantRepository.findAllByIdIn(variantIds).stream()
                 .collect(Collectors.toMap(ProductVariant::getId, Function.identity()));
     }
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FiHeart, FiStar, FiCheckCircle, FiHome as FiStoreIcon, FiShoppingCart, FiArrowRight } from 'react-icons/fi';
+import { FiHeart, FiCheckCircle, FiHome as FiStoreIcon, FiShoppingCart, FiImage } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { enrichProduct } from '../../lib/catalog';
 import { useWishlist } from '../../features/wishlist/WishlistContext';
@@ -7,7 +7,7 @@ import { useAuth } from '../../features/auth/AuthContext';
 
 /**
  * variant "recommended": image overlay heart + star rating (Frame 05 style)
- * variant "category": price/name row + "By vendor · rating · Visit Store" + Add to Cart button (Frame 06 style)
+ * variant "category": price/name row + "By vendor · rating" + Add to Cart button (Frame 06 style)
  * variant "grid" (default): compact card used on the home page / product listing
  */
 export default function ProductCard({ product, variant = 'grid', onAddToCart, addToCartLoading }) {
@@ -40,8 +40,32 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart, ad
   return (
     <Link href={`/products/${p.id}`} className="pcard">
       <div className="pcard-media">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={p.displayImage} alt={p.name} loading="lazy" />
+        {p.displayImage ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={p.displayImage}
+            alt={p.name}
+            loading="lazy"
+            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+          />
+        ) : null}
+        <div
+          style={{
+            display: p.displayImage ? 'none' : 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            minHeight: 180,
+            background: 'var(--bg-subtle)',
+            color: 'var(--text-muted)',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <FiImage size={24} />
+          <span style={{ fontSize: 12 }}>No image</span>
+        </div>
         {(variant === 'recommended' || variant === 'grid') && (
           <button
             type="button"
@@ -60,8 +84,7 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart, ad
         {variant === 'category' ? (
           <div className="pcard-store">
             <span>By: {p.displayStoreName}</span>
-            <FiStar className="verified" />
-            <span>{p.displayRating}</span>
+            {p.displayVerified && <FiCheckCircle className="verified" />}
           </div>
         ) : (
           <div className="pcard-store">
@@ -71,23 +94,9 @@ export default function ProductCard({ product, variant = 'grid', onAddToCart, ad
           </div>
         )}
 
-        {variant === 'category' ? (
-          <div className="pcard-bottom">
+        <div className="pcard-bottom">
             <span className="pcard-price">MMK {price}</span>
-            <span className="pcard-visit">
-              Visit Store <FiArrowRight size={12} />
-            </span>
           </div>
-        ) : (
-          <div className="pcard-bottom">
-            <span className="pcard-price">MMK {price}</span>
-            {variant === 'recommended' && (
-              <span className="pcard-rating">
-                <FiStar /> {p.displayRating} ({p.displayReviewCount})
-              </span>
-            )}
-          </div>
-        )}
 
         {variant === 'category' && (
           <button type="button" className="pcard-cta" onClick={handleAddToCart} disabled={addToCartLoading}>

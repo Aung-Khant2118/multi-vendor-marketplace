@@ -23,16 +23,16 @@ export default function VendorLayout({ children }) {
   }, []);
 
   return (
-    <div className="vendor-shell">
+    <div className="app-shell">
       <VendorSidebar
         expanded={expanded}
         mobileOpen={mobileOpen}
         onToggleExpand={toggleExpand}
         onCloseMobile={() => setMobileOpen(false)}
       />
-      <div className="vendor-main">
+      <div className="app-main">
         <Topbar onOpenMobileMenu={() => setMobileOpen(true)} />
-        <div className="vendor-content">{children}</div>
+        <div className="app-content">{children}</div>
         <VendorFooter />
       </div>
     </div>

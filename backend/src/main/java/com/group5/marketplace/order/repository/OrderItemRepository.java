@@ -26,6 +26,9 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
     @EntityGraph(attributePaths = {"order"})
     List<OrderItem> findByVendorIdOrderByCreatedAtDesc(Long vendorId);
 
+    @EntityGraph(attributePaths = {"order"})
+    org.springframework.data.domain.Page<OrderItem> findByVendorIdOrderByCreatedAtDesc(Long vendorId, org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT COALESCE(SUM(oi.subtotal), 0) FROM OrderItem oi WHERE oi.vendorId = :vendorId")
     BigDecimal sumRevenueByVendorId(@Param("vendorId") Long vendorId);
 

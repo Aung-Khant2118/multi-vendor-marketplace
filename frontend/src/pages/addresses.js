@@ -26,6 +26,9 @@ export default function Addresses() {
   const [addressesLoading, setAddressesLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -69,9 +72,11 @@ export default function Addresses() {
     }
   };
 
-  if (!loading && !isAuthenticated) {
+  if (mounted && !loading && !isAuthenticated) {
     return <GuestGuard message="Log in to manage your saved addresses." />;
   }
+
+  if (!mounted) return null;
 
   return (
     <AppLayout>
@@ -89,7 +94,7 @@ export default function Addresses() {
             <label className="form-label">Recipient Name</label>
             <input
               className="form-input"
-              placeholder="John Doe"
+              placeholder="e.g. Ko Aung"
               value={form.recipientName}
               onChange={(e) => setForm({ ...form, recipientName: e.target.value })}
             />
@@ -98,7 +103,7 @@ export default function Addresses() {
             <label className="form-label">Phone</label>
             <input
               className="form-input"
-              placeholder="+1 234 567 890"
+              placeholder="09 123 456 789"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
@@ -107,7 +112,7 @@ export default function Addresses() {
             <label className="form-label">Address line 1</label>
             <input
               className="form-input"
-              placeholder="123 Commerce St"
+              placeholder="House No, Street, Ward"
               value={form.line1}
               onChange={(e) => setForm({ ...form, line1: e.target.value })}
             />
@@ -116,7 +121,7 @@ export default function Addresses() {
             <label className="form-label">Address line 2</label>
             <input
               className="form-input"
-              placeholder="Apt 4B (optional)"
+              placeholder="Room, Floor (optional)"
               value={form.line2}
               onChange={(e) => setForm({ ...form, line2: e.target.value })}
             />
@@ -125,6 +130,7 @@ export default function Addresses() {
             <label className="form-label">City</label>
             <input
               className="form-input"
+              placeholder="e.g. Yangon"
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
             />
@@ -133,6 +139,7 @@ export default function Addresses() {
             <label className="form-label">Region / State</label>
             <input
               className="form-input"
+              placeholder="e.g. Yangon Region"
               value={form.region}
               onChange={(e) => setForm({ ...form, region: e.target.value })}
             />
@@ -141,6 +148,7 @@ export default function Addresses() {
             <label className="form-label">Postal code</label>
             <input
               className="form-input"
+              placeholder="e.g. 11121"
               value={form.postalCode}
               onChange={(e) => setForm({ ...form, postalCode: e.target.value })}
             />
@@ -149,7 +157,7 @@ export default function Addresses() {
             <label className="form-label">Country</label>
             <input
               className="form-input"
-              placeholder="US"
+              placeholder="Myanmar"
               value={form.country}
               onChange={(e) => setForm({ ...form, country: e.target.value })}
             />

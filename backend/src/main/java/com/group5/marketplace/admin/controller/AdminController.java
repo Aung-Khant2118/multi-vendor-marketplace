@@ -9,6 +9,8 @@ import com.group5.marketplace.admin.service.AdminService;
 import com.group5.marketplace.audit.entity.AuditLog;
 import com.group5.marketplace.audit.service.AuditService;
 import com.group5.marketplace.category.dto.CategoryResponse;
+import com.group5.marketplace.order.dto.OrderResponse;
+import com.group5.marketplace.order.service.OrderService;
 import com.group5.marketplace.user.util.CurrentUserService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -26,12 +28,14 @@ public class AdminController {
     private final AdminService adminService;
     private final AuditService auditService;
     private final CurrentUserService currentUserService;
+    private final OrderService orderService;
 
     public AdminController(AdminService adminService, AuditService auditService,
-                           CurrentUserService currentUserService) {
+                           CurrentUserService currentUserService, OrderService orderService) {
         this.adminService = adminService;
         this.auditService = auditService;
         this.currentUserService = currentUserService;
+        this.orderService = orderService;
     }
 
     @GetMapping("/dashboard")
@@ -171,6 +175,43 @@ public class AdminController {
         body.put("totalElements", logs.getTotalElements());
         body.put("totalPages", logs.getTotalPages());
         body.put("currentPage", logs.getNumber());
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<Map<String, Object>> listOrders(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<OrderResponse> orders = orderService.getAdminOrders(status, page, size);
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("data", orders.getContent());
+        body.put("totalElements", orders.getTotalElements());
+        body.put("totalPages", orders.getTotalPages());
+        body.put("currentPage", orders.getNumber());
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/orders/{id}")
+    public ResponseEntity<Map<String, Object>> getOrder(@PathVariable Long id) {
+        OrderResponse order = orderService.getAdminOrder(id);
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("data", order);
+        return ResponseEntity.ok(body);
+    }
+
+    @PatchMapping("/orders/{id}/cancel")
+    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long id,
+                                                            @Valid @RequestBody com.group5.marketplace.order.dto.CancelOrderRequest request,
+                                                            Principal principal) {
+        Long adminId = currentUserService.getCurrentUserId(principal);
+        OrderResponse order = orderService.cancelOrder(id, request, "ADMIN", adminId);
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("message", "Order cancelled");
+        body.put("data", order);
         return ResponseEntity.ok(body);
     }
 }

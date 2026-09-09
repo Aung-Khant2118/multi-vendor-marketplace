@@ -23,6 +23,10 @@ public class OrderResponse {
     private String paymentMethod;
     private java.time.LocalDateTime createdAt;
     private List<OrderItemResponse> items;
+    private String cancellationReason;
+    private String cancellationNote;
+    private String cancelledBy;
+    private java.time.LocalDateTime cancelledAt;
 
     public OrderResponse() {}
 
@@ -64,4 +68,12 @@ public class OrderResponse {
     public void setCreatedAt(java.time.LocalDateTime createdAt) { this.createdAt = createdAt; }
     public List<OrderItemResponse> getItems() { return items; }
     public void setItems(List<OrderItemResponse> items) { this.items = items; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+    public String getCancellationNote() { return cancellationNote; }
+    public void setCancellationNote(String cancellationNote) { this.cancellationNote = cancellationNote; }
+    public String getCancelledBy() { return cancelledBy; }
+    public void setCancelledBy(String cancelledBy) { this.cancelledBy = cancelledBy; }
+    public java.time.LocalDateTime getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(java.time.LocalDateTime cancelledAt) { this.cancelledAt = cancelledAt; }
 }

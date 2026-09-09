@@ -106,6 +106,52 @@
   flex-shrink: 0;
 }
 
+/* ----- Chart grid and cards ----- */
+.achart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.achart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.achart-head {
+  padding: 16px 20px 0;
+}
+
+.achart-head h3 {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.achart-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  display: block;
+}
+
+.achart-body {
+  padding: 12px 8px 8px;
+}
+
+.achart-empty {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
 /* ----- Recent activity feed ----- */
 .aactivity-list {
   display: flex;
@@ -527,15 +573,58 @@
   background: var(--navy-800);
 }
 
+/* ----- Platform Summary ----- */
+.asummary-list {
+  padding: 16px 20px;
+}
+
+.asummary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.asummary-row:last-child {
+  border-bottom: none;
+}
+
+.asummary-label {
+  color: var(--text-secondary);
+}
+
+.asummary-value {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.asummary-value.warn {
+  color: var(--warn, #f59e0b);
+}
+
+/* ----- Empty state ----- */
+.asummary-empty {
+  padding: 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 /* ----- Responsive ----- */
 @media (max-width: 980px) {
   .astat-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .achart-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
   .astat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .achart-grid {
     grid-template-columns: 1fr;
   }
 

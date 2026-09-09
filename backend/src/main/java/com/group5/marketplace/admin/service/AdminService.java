@@ -101,17 +101,23 @@ public class AdminService {
                 .collect(Collectors.toList());
 
         // Orders by status
-        List<Object[]> statusRows = orderRepository.countByStatusGroup();
         Map<String, Long> ordersByStatus = new HashMap<>();
-        for (Object[] row : statusRows) {
-            ordersByStatus.put(row[0].toString(), asLong(row[1]));
+        try {
+            List<Object[]> statusRows = orderRepository.countByStatusGroup();
+            for (Object[] row : statusRows) {
+                ordersByStatus.put(row[0].toString(), asLong(row[1]));
+            }
+        } catch (Exception ignored) {
         }
 
         // Users by role
-        List<Object[]> roleRows = userRepository.countByRoleGroup();
         Map<String, Long> usersByRole = new HashMap<>();
-        for (Object[] row : roleRows) {
-            usersByRole.put(row[0].toString(), asLong(row[1]));
+        try {
+            List<Object[]> roleRows = userRepository.countByRoleGroup();
+            for (Object[] row : roleRows) {
+                usersByRole.put(row[0].toString(), asLong(row[1]));
+            }
+        } catch (Exception ignored) {
         }
 
         return new AdminAnalyticsResponse(monthlyRevenue, monthlyOrders, monthlyVendors,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import { jwtDecode } from 'jwt-decode';
 import { FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useRouter } from 'next/router';
@@ -36,7 +37,22 @@ export default function LoginForm() {
 
     if (result.success) {
       toast.success('Login successful! Welcome back.');
-      router.push('/dashboard');
+      // LoginResponse only returns tokens — role lives on the JWT claim.
+      let role = result.data?.user?.role || null;
+      if (!role && result.data?.token) {
+        try {
+          role = jwtDecode(result.data.token)?.role || null;
+        } catch {
+          role = null;
+        }
+      }
+      if (role === 'ADMIN') {
+        router.push('/admin/dashboard');
+      } else if (role === 'VENDOR') {
+        router.push('/vendor/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } else {
       const message = result.error || 'Login failed. Please try again.';
       setServerError(message);

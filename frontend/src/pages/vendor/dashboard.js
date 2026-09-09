@@ -1,54 +1,89 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FiPlus, FiZap, FiClock, FiAlertCircle, FiAward } from 'react-icons/fi';
+import { FiPlus, FiZap, FiClock } from 'react-icons/fi';
 import { vendorAPI } from '../../services/api';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useVendorGuard } from '../../lib/useVendorGuard';
-import { formatCurrency } from '../../lib/format';
-import { REVENUE_SPARKLINE } from '../../lib/vendorDemoData';
+import { formatCurrency, getStatusPill } from '../../lib/format';
 import VendorLayout from '../../components/vendor/VendorLayout';
-import Sparkline from '../../components/vendor/Sparkline';
-
-const ACTIVE_STATUSES = new Set(['CONFIRMED', 'SHIPPED']);
-
-const STATUS_PILL = {
-  CONFIRMED: { cls: 'vpill-gray', label: 'New' },
-  SHIPPED: { cls: 'vpill-blue', label: 'Shipped' },
-  DELIVERED: { cls: 'vpill-green', label: 'Delivered' },
-  CANCELED: { cls: 'vpill-red', label: 'Canceled' },
-};
+import RevenueLineChart from '../../components/charts/RevenueLineChart';
+import StatusPieChart from '../../components/charts/StatusPieChart';
 
 export default function VendorDashboard() {
   const { ready } = useVendorGuard();
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [productCount, setProductCount] = useState(0);
+  const [timeSeries, setTimeSeries] = useState(null);
+  const [errors, setErrors] = useState([]);
 
   useEffect(() => {
     if (!ready) return;
+
+    const loadErrors = [];
+
     vendorAPI
-      .getOrders()
+      .getOrders({ page: 0, size: 3 })
       .then((res) => setOrders(res.data?.data || []))
-      .catch(() => {});
+      .catch((err) => {
+        loadErrors.push('Failed to load orders');
+        console.error('Orders fetch error:', err);
+      });
+
     vendorAPI
       .getDashboard()
       .then((res) => setProductCount(res.data?.data?.productCount || 0))
-      .catch(() => {});
+      .catch((err) => {
+        loadErrors.push('Failed to load dashboard stats');
+        console.error('Dashboard fetch error:', err);
+      });
+
+    vendorAPI
+      .getAnalytics()
+      .then((res) => setAnalytics(res.data?.data || null))
+      .catch((err) => {
+        loadErrors.push('Failed to load analytics');
+        console.error('Analytics fetch error:', err);
+      });
+
+    vendorAPI
+      .getAnalyticsTimeSeries()
+      .then((res) => setTimeSeries(res.data?.data || null))
+      .catch((err) => {
+        loadErrors.push('Failed to load analytics');
+        console.error('Analytics fetch error:', err);
+      });
+
+    if (loadErrors.length > 0) {
+      setErrors(loadErrors);
+    }
   }, [ready]);
 
   if (!ready) return null;
 
-  const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
-  const pendingCount = orders.filter((o) => ACTIVE_STATUSES.has(o.status)).length;
-  // The backend doesn't return per-variant stock on the orders/dashboard
-  // summary, so "items needing restock" is derived deterministically from
-  // the vendor's product count until a real low-stock endpoint exists.
-  const lowStockCount = Math.max(0, Math.round(productCount * 0.1));
-  const recentOrders = orders.slice(0, 3);
-  const displayName = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || 'Vendor';
+  const totalRevenue = analytics?.totalRevenue || 0;
+  const totalOrders = analytics?.totalOrders || 0;
+  const statusBreakdown = analytics?.statusBreakdown || {};
+  const pendingCount = (statusBreakdown['PENDING'] || 0) + (statusBreakdown['CONFIRMED'] || 0) +
+    (statusBreakdown['PROCESSING'] || 0) + (statusBreakdown['SHIPPED'] || 0);
+  const recentOrders = orders;
+  const displayName = user?.firstName
+    ? `${user.firstName} ${user.lastName || ''}`.trim()
+    : user?.email || 'Vendor';
+
+  const monthlyRevenue = timeSeries?.monthlyRevenue || [];
 
   return (
     <VendorLayout>
+      {errors.length > 0 && (
+        <div className="vendor-error-banner">
+          {errors.map((err, i) => (
+            <div key={i} className="form-error">{err}</div>
+          ))}
+        </div>
+      )}
+
       <div className="vendor-heading">
         <div>
           <div className="vendor-eyebrow">Welcome back</div>
@@ -69,14 +104,10 @@ export default function VendorDashboard() {
           <div className="vendor-revenue-top">
             <span className="vendor-revenue-label">
               Total Revenue
-              <span>This Month</span>
+              <span>All Time</span>
             </span>
-            <span className="vendor-stat-trend up">+14.2%</span>
           </div>
           <div className="vendor-revenue-value">{formatCurrency(totalRevenue)}</div>
-          <div className="vendor-revenue-chart">
-            <Sparkline points={REVENUE_SPARKLINE} />
-          </div>
         </div>
 
         <div className="vendor-mini-card">
@@ -95,28 +126,51 @@ export default function VendorDashboard() {
           </div>
         </div>
 
-        <div className="vendor-mini-card tone-danger">
-          <div className="vendor-mini-icon tone-red">
-            <FiAlertCircle size={16} />
+        <div className="vendor-mini-card">
+          <div className="vendor-mini-icon tone-blue">
+            <FiClock size={16} />
           </div>
           <div className="vendor-mini-label">
-            Low Stock
-            <span>Critical levels</span>
+            Total Products
+            <span>In your store</span>
           </div>
           <div className="vendor-mini-bottom">
-            <span className="vendor-mini-value">{lowStockCount}</span>
-            <span className="vendor-stat-badge">URGENT</span>
+            <span className="vendor-mini-value">{productCount}</span>
+            <Link href="/vendor/products" className="vendor-stat-link">
+              Manage
+            </Link>
           </div>
         </div>
       </div>
 
-      <div className="vendor-banner">
-        <span className="vendor-banner-icon">
-          <FiAward size={18} />
-        </span>
-        <div>
-          <div className="vendor-banner-title">Pro Vendor Status Active</div>
-          <div className="vendor-banner-copy">Your transaction fees are reduced by 1.5% this cycle.</div>
+      {/* Charts Section */}
+      <div className="achart-grid">
+        <div className="achart-card">
+          <div className="achart-head">
+            <h3>Revenue Trend</h3>
+            <span className="achart-subtitle">Monthly revenue (last 12 months)</span>
+          </div>
+          <div className="achart-body">
+            {monthlyRevenue.length > 0 ? (
+              <RevenueLineChart data={monthlyRevenue} height={260} />
+            ) : (
+              <div className="achart-empty">No revenue data yet. Sales will appear here once customers place orders.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="achart-card">
+          <div className="achart-head">
+            <h3>Order Status Breakdown</h3>
+            <span className="achart-subtitle">Distribution of your order statuses</span>
+          </div>
+          <div className="achart-body">
+            {Object.keys(statusBreakdown).length > 0 ? (
+              <StatusPieChart data={statusBreakdown} height={260} />
+            ) : (
+              <div className="achart-empty">No orders yet. Status breakdown will appear here.</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -145,7 +199,7 @@ export default function VendorDashboard() {
               <tbody>
                 {recentOrders.map((o) => {
                   const firstItem = o.items?.[0];
-                  const pill = STATUS_PILL[o.status] || { cls: 'vpill-gray', label: o.status };
+                  const pill = getStatusPill(o.status);
                   return (
                     <tr key={o.id}>
                       <td>#ORD-{o.id}</td>
@@ -158,7 +212,7 @@ export default function VendorDashboard() {
                       <td>
                         {firstItem
                           ? `${firstItem.productName}${o.items.length > 1 ? ` +${o.items.length - 1} more` : ''}`
-                          : '—'}
+                          : '\u2014'}
                       </td>
                       <td>{formatCurrency(o.total)}</td>
                       <td>
@@ -175,7 +229,7 @@ export default function VendorDashboard() {
         {orders.length > 0 && (
           <div className="load-more-wrap" style={{ marginTop: 12 }}>
             <Link href="/vendor/orders" className="vendor-stat-link">
-              View All {orders.length} Orders →
+              View All {totalOrders} Orders &rarr;
             </Link>
           </div>
         )}

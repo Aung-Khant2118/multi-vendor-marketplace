@@ -10,6 +10,7 @@ import {
   FiLogOut,
   FiUser,
   FiX,
+  FiHome,
 } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useHasMounted } from '../../lib/useHasMounted';
@@ -23,11 +24,19 @@ const GUEST_NAV = [
 
 const CUSTOMER_NAV = [
   { href: '/', label: 'Overview', icon: FiGrid },
+  { href: '/dashboard', label: 'Dashboard', icon: FiHome },
   { href: '/orders', label: 'Orders', icon: FiPackage },
   { href: '/wishlist', label: 'Wishlist', icon: FiHeart },
   { href: '/addresses', label: 'Addresses', icon: FiMapPin },
   { href: '/settings', label: 'Settings', icon: FiSettings },
   { href: '/cart', label: 'Cart', icon: FiShoppingCart },
+];
+
+const ADMIN_NAV = [
+  { href: '/admin/dashboard', label: 'Admin Dashboard', icon: FiHome },
+  { href: '/admin/users', label: 'Users', icon: FiUser },
+  { href: '/admin/vendors', label: 'Vendors', icon: FiPackage },
+  { href: '/settings', label: 'Settings', icon: FiSettings },
 ];
 
 const roleLabel = (user) => {
@@ -54,7 +63,11 @@ export default function Sidebar({ expanded, mobileOpen, onCloseMobile, onToggleE
   // takes over immediately after.
   const mounted = useHasMounted();
   const isAuthenticated = mounted && authState;
-  const navItems = isAuthenticated ? CUSTOMER_NAV : GUEST_NAV;
+  const navItems = !isAuthenticated
+    ? GUEST_NAV
+    : user?.role === 'ADMIN'
+      ? ADMIN_NAV
+      : CUSTOMER_NAV;
   // The mobile drawer is always shown in its full "expanded" form, even
   // though the desktop collapse toggle is a separate piece of state.
   const showLabels = expanded || mobileOpen;
@@ -77,8 +90,8 @@ export default function Sidebar({ expanded, mobileOpen, onCloseMobile, onToggleE
           onClick={onToggleExpand}
           aria-label={expanded ? 'Collapse menu' : 'Expand menu'}
         >
-          <span className="sidebar-brand-mark">Z</span>
-          {showLabels && <span className="sidebar-brand-name">ZAYLINK</span>}
+          <img src="/logo.jpeg" alt="ZayLink Logo" className="sidebar-brand-mark" />
+          {showLabels && <span className="sidebar-brand-name">ZayLink</span>}
         </button>
 
         {/* The user/guest card only appears once the rail is expanded,

@@ -17,7 +17,11 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
 
     List<ProductVariant> findByProductId(Long productId);
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"product"})
     List<ProductVariant> findByIdIn(Set<Long> ids);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"product"})
+    List<ProductVariant> findAllByIdIn(java.util.Collection<Long> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT v FROM ProductVariant v WHERE v.id = :id")

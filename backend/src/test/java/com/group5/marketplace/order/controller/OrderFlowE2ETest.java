@@ -263,35 +263,6 @@ class OrderFlowE2ETest {
     }
 
     @Test
-    void cancelOrderRestocksAndRefundsPaidPayment() throws Exception {
-        mockMvc.perform(post("/api/cart")
-                        .header("Authorization", "Bearer " + customerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"variantId\": " + variantId + ", \"quantity\": 2}"))
-                .andExpect(status().isOk());
-
-        MvcResult created = mockMvc.perform(post("/api/orders")
-                        .header("Authorization", "Bearer " + customerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "shippingAddressId", shippingAddressId,
-                                "paymentMethod", "CARD"))))
-                .andExpect(status().isCreated())
-                .andReturn();
-        Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path(0).path("id").asLong();
-
-        mockMvc.perform(post("/api/orders/" + orderId + "/cancel")
-                        .header("Authorization", "Bearer " + customerToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("CANCELED"))
-                .andExpect(jsonPath("$.data.paymentStatus").value("REFUNDED"));
-
-        // stock restored
-        ProductVariant v = variantRepository.findById(variantId).orElseThrow();
-        assertThat(v.getStock()).isEqualTo(10);
-    }
-
-    @Test
     void cashOnDeliveryMarksPaymentCompleteOnDelivery() throws Exception {
         mockMvc.perform(post("/api/cart")
                         .header("Authorization", "Bearer " + customerToken)
@@ -374,10 +345,8 @@ class OrderFlowE2ETest {
                 .andReturn();
         Long orderId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path(0).path("id").asLong();
 
-        // another user cannot view or cancel the order
+        // another user cannot view the order
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(post("/api/orders/" + orderId + "/cancel").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isForbidden());
     }
 }

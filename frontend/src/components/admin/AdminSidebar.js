@@ -1,22 +1,42 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FiGrid, FiUsers, FiShoppingBag, FiTag, FiFileText, FiLogOut, FiX } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiShoppingBag, FiTag, FiFileText, FiSettings, FiLogOut, FiX, FiPackage } from 'react-icons/fi';
+import { useAuth } from '../../features/auth/AuthContext';
+import { useHasMounted } from '../../lib/useHasMounted';
 
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: FiGrid },
   { href: '/admin/users', label: 'Users', icon: FiUsers },
   { href: '/admin/vendors', label: 'Vendors', icon: FiShoppingBag },
+  { href: '/admin/orders', label: 'Orders', icon: FiPackage },
   { href: '/admin/categories', label: 'Categories', icon: FiTag },
   { href: '/admin/audit-logs', label: 'Audit Logs', icon: FiFileText },
 ];
 
-// Admin's own account here is a static placeholder — there's no admin
-// backend/auth wired up yet (out of scope, see admin design.zip task).
-const ADMIN_ACCOUNT = { initials: 'AD', name: 'DelinaDD', sub: 'Administrator account' };
+const roleLabel = (user) => {
+  if (user?.role === 'ADMIN') return 'Administrator account';
+  if (user?.role === 'VENDOR') return 'Vendor account';
+  return 'Customer account';
+};
+
+const initialsOf = (user) => {
+  if (!user) return '';
+  const a = user.firstName?.[0] || '';
+  const b = user.lastName?.[0] || '';
+  return (a + b || user.email?.[0] || '?').toUpperCase();
+};
 
 export default function AdminSidebar({ expanded, mobileOpen, onCloseMobile, onToggleExpand }) {
   const router = useRouter();
+  const { isAuthenticated: authState, user, logout } = useAuth();
+  const mounted = useHasMounted();
+  const isAuthenticated = mounted && authState;
   const showLabels = expanded || mobileOpen;
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/auth/login');
+  };
 
   return (
     <>
@@ -31,15 +51,17 @@ export default function AdminSidebar({ expanded, mobileOpen, onCloseMobile, onTo
           onClick={onToggleExpand}
           aria-label={expanded ? 'Collapse menu' : 'Expand menu'}
         >
-          <span className="sidebar-brand-mark">Z</span>
-          {showLabels && <span className="sidebar-brand-name">ZAYLINK</span>}
+          <img src="/logo.jpeg" alt="ZayLink Logo" className="sidebar-brand-mark" />
+          {showLabels && <span className="sidebar-brand-name">ZayLink</span>}
         </button>
 
-        {showLabels && (
+        {showLabels && isAuthenticated && (
           <div className="sidebar-user-card">
-            <span className="sidebar-avatar">{ADMIN_ACCOUNT.initials}</span>
-            <span className="sidebar-user-name">{ADMIN_ACCOUNT.name}</span>
-            <span className="sidebar-user-sub">{ADMIN_ACCOUNT.sub}</span>
+            <span className="sidebar-avatar">{initialsOf(user)}</span>
+            <span className="sidebar-user-name">
+              {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email}
+            </span>
+            <span className="sidebar-user-sub">{roleLabel(user)}</span>
           </div>
         )}
 
@@ -62,10 +84,21 @@ export default function AdminSidebar({ expanded, mobileOpen, onCloseMobile, onTo
 
           <div className="sidebar-nav-spacer" />
 
-          <Link href="/auth/login" className="sidebar-nav-item logout" title="Log out">
-            <FiLogOut />
-            {showLabels && <span>Log out</span>}
+          <Link
+            href="/settings"
+            className={`sidebar-nav-item ${router.pathname === '/settings' ? 'active' : ''}`}
+            title="Settings"
+          >
+            <FiSettings />
+            {showLabels && <span>Settings</span>}
           </Link>
+
+          {isAuthenticated && (
+            <button type="button" className="sidebar-nav-item logout" onClick={handleLogout} title="Log out">
+              <FiLogOut />
+              {showLabels && <span>Log out</span>}
+            </button>
+          )}
         </nav>
       </aside>
       <div className={`sidebar-scrim ${mobileOpen ? 'open' : ''}`} onClick={onCloseMobile} />

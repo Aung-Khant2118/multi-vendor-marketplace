@@ -2,7 +2,6 @@ package com.group5.marketplace.order.controller;
 
 import com.group5.marketplace.order.dto.OrderResponse;
 import com.group5.marketplace.order.dto.UpdateOrderStatusRequest;
-import com.group5.marketplace.order.entity.OrderItemStatus;
 import com.group5.marketplace.order.repository.OrderItemRepository;
 import com.group5.marketplace.order.repository.OrderRepository;
 import com.group5.marketplace.order.service.OrderService;
@@ -68,12 +67,18 @@ public class VendorOrderController {
 
     @GetMapping("/orders")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<Map<String, Object>> list(Principal principal) {
+    public ResponseEntity<Map<String, Object>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            Principal principal) {
         Long vendorId = resolveVendorId(principal);
-        List<OrderResponse> orders = orderService.getVendorOrders(vendorId);
+        org.springframework.data.domain.Page<OrderResponse> orders = orderService.getVendorOrders(vendorId, page, size);
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);
-        body.put("data", orders);
+        body.put("data", orders.getContent());
+        body.put("totalElements", orders.getTotalElements());
+        body.put("totalPages", orders.getTotalPages());
+        body.put("currentPage", orders.getNumber());
         return ResponseEntity.ok(body);
     }
 
@@ -91,6 +96,23 @@ public class VendorOrderController {
         return ResponseEntity.ok(body);
     }
 
+    @PatchMapping("/orders/{id}/cancel")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<Map<String, Object>> cancelOrder(@PathVariable Long id,
+                                                            @Valid @RequestBody com.group5.marketplace.order.dto.CancelOrderRequest request,
+                                                            Principal principal) {
+        Long vendorId = resolveVendorId(principal);
+        Vendor vendor = vendorRepository.findByUserId(currentUserService.getCurrentUserId(principal))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Vendor profile not found"));
+        OrderResponse order = orderService.cancelOrder(id, request, "VENDOR", vendor.getUserId());
+        Map<String, Object> body = new HashMap<>();
+        body.put("success", true);
+        body.put("message", "Order cancelled");
+        body.put("data", order);
+        return ResponseEntity.ok(body);
+    }
+
     @GetMapping("/analytics")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Map<String, Object>> analytics(Principal principal) {
@@ -99,14 +121,11 @@ public class VendorOrderController {
         BigDecimal totalRevenue = orderItemRepository.sumRevenueByVendorId(vendorId);
         long totalOrders = orderItemRepository.countDistinctOrdersByVendorId(vendorId);
         long totalItems = orderItemRepository.countByVendorId(vendorId);
-        long refundedItems = orderItemRepository.countByVendorIdAndStatus(vendorId, OrderItemStatus.REFUNDED);
 
         BigDecimal avgOrderValue = totalOrders > 0
                 ? totalRevenue.divide(BigDecimal.valueOf(totalOrders), 2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
-        String refundRate = totalItems > 0
-                ? String.format("%.1f%%", (refundedItems * 100.0 / totalItems))
-                : "0.0%";
+        String refundRate = "0.0%";
 
         // Top products by revenue
         List<Object[]> topRows = orderItemRepository.findTopProductsByRevenue(vendorId, PageRequest.of(0, 5));

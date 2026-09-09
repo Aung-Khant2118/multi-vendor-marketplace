@@ -13,8 +13,10 @@ export default function Wishlist() {
   const { isAuthenticated } = useAuth();
   const [products, setProducts] = useState(null);
   const { addToCart, loadingId } = useQuickAddToCart();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     customerAPI
       .getProducts()
       .then((res) => setProducts(res.data?.data || []))
@@ -37,7 +39,7 @@ export default function Wishlist() {
         </div>
       </div>
 
-      {!isAuthenticated && (
+      {mounted && !isAuthenticated && (
         <div className="content-card" style={{ marginBottom: 16, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <FiHeart size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
           <p style={{ margin: 0, fontSize: 14 }}>

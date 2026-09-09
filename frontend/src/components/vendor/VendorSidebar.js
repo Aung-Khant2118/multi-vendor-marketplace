@@ -1,15 +1,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { FiGrid, FiClipboard, FiBox, FiTrendingUp, FiX } from 'react-icons/fi';
-import { HiMegaphone } from 'react-icons/hi2';
+import { FiHome, FiClipboard, FiBox, FiTrendingUp, FiTag, FiSettings, FiLogOut, FiX } from 'react-icons/fi';
 import { useAuth } from '../../features/auth/AuthContext';
 import { useHasMounted } from '../../lib/useHasMounted';
 
 const NAV_ITEMS = [
-  { href: '/vendor/dashboard', label: 'Overview', icon: FiGrid },
+  { href: '/vendor/dashboard', label: 'Dashboard', icon: FiHome },
   { href: '/vendor/orders', label: 'Orders', icon: FiClipboard },
   { href: '/vendor/products', label: 'Products', icon: FiBox },
-  { href: '/vendor/promos', label: 'Promos', icon: HiMegaphone },
+  { href: '/vendor/promos', label: 'Promos', icon: FiTag },
   { href: '/vendor/analytics', label: 'Analytics', icon: FiTrendingUp },
 ];
 
@@ -28,44 +27,44 @@ const initialsOf = (user) => {
 
 export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onToggleExpand }) {
   const router = useRouter();
-  const { isAuthenticated: authState, user } = useAuth();
+  const { isAuthenticated: authState, user, logout } = useAuth();
   const mounted = useHasMounted();
   const isAuthenticated = mounted && authState;
   const showLabels = expanded || mobileOpen;
 
+  const handleLogout = async () => {
+    await logout();
+    router.push('/auth/login');
+  };
+
   return (
     <>
-      <aside className={`vendor-sidebar ${expanded ? 'expanded' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
-        <button
-          type="button"
-          className="vendor-sidebar-mobile-close"
-          onClick={onCloseMobile}
-          aria-label="Close menu"
-        >
+      <aside className={`app-sidebar ${expanded ? 'expanded' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+        <button type="button" className="sidebar-mobile-close" onClick={onCloseMobile} aria-label="Close menu">
           <FiX size={20} />
         </button>
 
         <button
           type="button"
-          className="vendor-sidebar-brand"
+          className="sidebar-brand"
           onClick={onToggleExpand}
           aria-label={expanded ? 'Collapse menu' : 'Expand menu'}
         >
-          <span className="vendor-sidebar-mark">Z</span>
-          {showLabels && <span className="vendor-sidebar-name">ZAYLINK</span>}
+          <img src="/logo.jpeg" alt="ZayLink Logo" className="sidebar-brand-mark" />
+          {showLabels && <span className="sidebar-brand-name">ZayLink</span>}
         </button>
 
         {showLabels && isAuthenticated && (
-          <div className="vendor-user-card">
-            <span className="vendor-avatar">{initialsOf(user)}</span>
-            <span className="vendor-user-name">
+          <div className="sidebar-user-card">
+            <span className="sidebar-avatar">{initialsOf(user)}</span>
+            <span className="sidebar-user-name">
               {user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email}
             </span>
-            <span className="vendor-user-sub">{roleLabel(user)}</span>
+            <span className="sidebar-user-sub">{roleLabel(user)}</span>
           </div>
         )}
 
-        <nav className="vendor-nav">
+        <nav className="sidebar-nav">
           {NAV_ITEMS.map((item) => {
             const active = router.pathname === item.href;
             const Icon = item.icon;
@@ -73,7 +72,7 @@ export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onT
               <Link
                 key={item.href}
                 href={item.href}
-                className={`vendor-nav-item ${active ? 'active' : ''}`}
+                className={`sidebar-nav-item ${active ? 'active' : ''}`}
                 title={item.label}
               >
                 <Icon />
@@ -81,9 +80,27 @@ export default function VendorSidebar({ expanded, mobileOpen, onCloseMobile, onT
               </Link>
             );
           })}
+
+          <div className="sidebar-nav-spacer" />
+
+          <Link
+            href="/settings"
+            className={`sidebar-nav-item ${router.pathname === '/settings' ? 'active' : ''}`}
+            title="Settings"
+          >
+            <FiSettings />
+            {showLabels && <span>Settings</span>}
+          </Link>
+
+          {isAuthenticated && (
+            <button type="button" className="sidebar-nav-item logout" onClick={handleLogout} title="Log out">
+              <FiLogOut />
+              {showLabels && <span>Log out</span>}
+            </button>
+          )}
         </nav>
       </aside>
-      <div className={`vendor-sidebar-scrim ${mobileOpen ? 'open' : ''}`} onClick={onCloseMobile} />
+      <div className={`sidebar-scrim ${mobileOpen ? 'open' : ''}`} onClick={onCloseMobile} />
     </>
   );
 }

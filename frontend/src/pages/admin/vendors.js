@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react';
-import { FiPlus, FiMoreVertical, FiCheck, FiX, FiSlash, FiStar, FiShoppingBag } from 'react-icons/fi';
+import { useEffect, useMemo, useState } from 'react';
+import { FiMoreVertical, FiCheck, FiX, FiSlash, FiStar, FiShoppingBag } from 'react-icons/fi';
 import AdminLayout from '../../components/admin/AdminLayout';
-import Modal from '../../components/admin/Modal';
 import Pagination from '../../components/admin/Pagination';
-import { VENDORS, VENDOR_STATUS_PILL } from '../../lib/adminDemoData';
+import { adminAPI } from '../../services/api';
+
+const VENDOR_STATUS_PILL = {
+  PENDING: 'vpill-yellow',
+  ACTIVE: 'vpill-green',
+  SUSPENDED: 'vpill-gray',
+  REJECTED: 'vpill-red',
+};
 
 const STATUS_ICON_TONE = {
   PENDING: 'tone-amber',
@@ -20,61 +26,101 @@ const TABS = [
   { key: 'REJECTED', label: 'Rejected' },
 ];
 
-const EMPTY_FORM = { store: '', owner: '', email: '' };
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const fullName = (u) => `${u || ''}`.trim() || 'Unknown';
 
 export default function AdminVendors() {
-  const [vendors, setVendors] = useState(VENDORS);
+  const [vendors, setVendors] = useState([]);
+  const [allVendors, setAllVendors] = useState([]);
   const [tab, setTab] = useState('ALL');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [registerOpen, setRegisterOpen] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [acting, setActing] = useState(null);
 
   const counts = useMemo(() => {
-    const c = { ALL: vendors.length, PENDING: 0, ACTIVE: 0, SUSPENDED: 0, REJECTED: 0 };
-    vendors.forEach((v) => (c[v.status] = (c[v.status] || 0) + 1));
+    const c = { ALL: totalCount, PENDING: 0, ACTIVE: 0, SUSPENDED: 0, REJECTED: 0 };
+    allVendors.forEach((v) => (c[v.status] = (c[v.status] || 0) + 1));
     return c;
-  }, [vendors]);
+  }, [allVendors, totalCount]);
 
-  const filtered = tab === 'ALL' ? vendors : vendors.filter((v) => v.status === tab);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  useEffect(() => {
+    setLoading(true);
+    const params = { page: page - 1, size: pageSize };
+    if (tab !== 'ALL') params.status = tab;
+    adminAPI
+      .getVendors(params)
+      .then((res) => {
+        setVendors(res.data?.data || []);
+        setTotalCount(res.data?.totalElements || 0);
+      })
+      .catch(() => {
+        setVendors([]);
+        setTotalCount(0);
+      })
+      .finally(() => setLoading(false));
+  }, [tab, page, pageSize]);
+
+  useEffect(() => {
+    adminAPI
+      .getVendors({ page: 0, size: 200 })
+      .then((res) => setAllVendors(res.data?.data || []))
+      .catch(() => {});
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageVendors = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const changeTab = (key) => {
     setTab(key);
     setPage(1);
   };
 
-  const setStatus = (id, status) => {
-    setVendors((list) => list.map((v) => (v.id === id ? { ...v, status } : v)));
-    setOpenMenuId(null);
-  };
+  const handleAction = async (id, action) => {
+    setActing(id);
+    try {
+      if (action === 'APPROVE') await adminAPI.approveVendor(id);
+      else if (action === 'REJECT') await adminAPI.rejectVendor(id);
+      else if (action === 'SUSPEND') await adminAPI.suspendVendor(id);
 
-  const submitRegister = (e) => {
-    e.preventDefault();
-    const nextId = Date.now();
-    const applied = new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-    setVendors((list) => [
-      { id: nextId, store: form.store, owner: form.owner, status: 'PENDING', rating: null, applied },
-      ...list,
-    ]);
-    setRegisterOpen(false);
-    setForm(EMPTY_FORM);
-    setTab('PENDING');
-    setPage(1);
+      setVendors((list) =>
+        list.map((v) => {
+          if (v.id !== id) return v;
+          if (action === 'APPROVE') return { ...v, status: 'ACTIVE' };
+          if (action === 'REJECT') return { ...v, status: 'REJECTED' };
+          if (action === 'SUSPEND') return { ...v, status: 'SUSPENDED' };
+          return v;
+        })
+      );
+      setAllVendors((list) =>
+        list.map((v) => {
+          if (v.id !== id) return v;
+          if (action === 'APPROVE') return { ...v, status: 'ACTIVE' };
+          if (action === 'REJECT') return { ...v, status: 'REJECTED' };
+          if (action === 'SUSPEND') return { ...v, status: 'SUSPENDED' };
+          return v;
+        })
+      );
+    } catch {
+      /* handled by interceptor */
+    } finally {
+      setActing(null);
+      setOpenMenuId(null);
+    }
   };
 
   return (
-    <AdminLayout searchPlaceholder="Search vendors, stores, owners...">
+    <AdminLayout>
       <div className="page-heading">
         <div>
           <h1>Vendor Management</h1>
         </div>
-        <button type="button" className="btn-pill btn-pill-yellow" onClick={() => setRegisterOpen(true)}>
-          <FiPlus /> Register Vendor
-        </button>
       </div>
 
       <div className="vtab-row">
@@ -86,7 +132,9 @@ export default function AdminVendors() {
       </div>
 
       <div className="vcard">
-        {pageVendors.length === 0 ? (
+        {loading ? (
+          <p style={{ padding: 20, color: 'var(--text-secondary)', textAlign: 'center' }}>Loading vendors…</p>
+        ) : vendors.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-title">No vendors found</div>
             <p>Try a different status tab.</p>
@@ -104,7 +152,7 @@ export default function AdminVendors() {
                 </tr>
               </thead>
               <tbody>
-                {pageVendors.map((v) => (
+                {vendors.map((v) => (
                   <tr key={v.id}>
                     <td>
                       <div className="vtable-cell-main">
@@ -112,8 +160,10 @@ export default function AdminVendors() {
                           <FiShoppingBag size={16} />
                         </span>
                         <div>
-                          <div className="vtable-name">{v.store}</div>
-                          <div className="vtable-sub">{v.owner}</div>
+                          <div className="vtable-name">{v.storeName}</div>
+                          <div className="vtable-sub">
+                            {fullName(v.userFirstName)} {v.userLastName} · {v.userEmail}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -123,13 +173,13 @@ export default function AdminVendors() {
                     <td>
                       {v.rating ? (
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 700 }}>
-                          <FiStar size={12} style={{ color: '#f3c318' }} /> {v.rating}
+                          <FiStar size={12} style={{ color: '#f3c318' }} /> {Number(v.rating).toFixed(1)}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>—</span>
                       )}
                     </td>
-                    <td>{v.applied}</td>
+                    <td>{formatDate(v.createdAt)}</td>
                     <td style={{ textAlign: 'center' }}>
                       {v.status === 'SUSPENDED' || v.status === 'REJECTED' ? (
                         <span style={{ color: 'var(--text-muted)' }}>—</span>
@@ -139,6 +189,7 @@ export default function AdminVendors() {
                             type="button"
                             className="vtable-kebab"
                             onClick={() => setOpenMenuId(openMenuId === v.id ? null : v.id)}
+                            disabled={acting === v.id}
                             aria-label="Vendor actions"
                           >
                             <FiMoreVertical size={16} />
@@ -147,16 +198,16 @@ export default function AdminVendors() {
                             <div className="filter-pill-dropdown" style={{ textAlign: 'left' }}>
                               {v.status === 'PENDING' && (
                                 <>
-                                  <button type="button" className="tone-green" onClick={() => setStatus(v.id, 'ACTIVE')}>
+                                  <button type="button" className="tone-green" onClick={() => handleAction(v.id, 'APPROVE')}>
                                     <FiCheck size={12} style={{ marginRight: 6 }} /> Approve
                                   </button>
-                                  <button type="button" className="tone-red" onClick={() => setStatus(v.id, 'REJECTED')}>
+                                  <button type="button" className="tone-red" onClick={() => handleAction(v.id, 'REJECT')}>
                                     <FiX size={12} style={{ marginRight: 6 }} /> Reject
                                   </button>
                                 </>
                               )}
                               {v.status === 'ACTIVE' && (
-                                <button type="button" className="tone-gray" onClick={() => setStatus(v.id, 'SUSPENDED')}>
+                                <button type="button" className="tone-gray" onClick={() => handleAction(v.id, 'SUSPEND')}>
                                   <FiSlash size={12} style={{ marginRight: 6 }} /> Suspend
                                 </button>
                               )}
@@ -173,7 +224,7 @@ export default function AdminVendors() {
         )}
       </div>
 
-      {filtered.length > 0 && (
+      {totalCount > 0 && (
         <Pagination
           page={currentPage}
           onPageChange={setPage}
@@ -182,55 +233,9 @@ export default function AdminVendors() {
             setPageSize(s);
             setPage(1);
           }}
-          totalCount={filtered.length}
+          totalCount={totalCount}
           itemLabel="vendors"
         />
-      )}
-
-      {registerOpen && (
-        <Modal title="Register Vendor" onClose={() => setRegisterOpen(false)}>
-          <form onSubmit={submitRegister}>
-            <div className="form-group">
-              <label className="form-label">Store Name</label>
-              <input
-                className="form-input"
-                required
-                value={form.store}
-                onChange={(e) => setForm({ ...form, store: e.target.value })}
-                placeholder="Juniper Market"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Owner Name</label>
-              <input
-                className="form-input"
-                required
-                value={form.owner}
-                onChange={(e) => setForm({ ...form, owner: e.target.value })}
-                placeholder="Sarah Smith"
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-input"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="owner@store.com"
-              />
-            </div>
-            <div className="amodal-actions">
-              <button type="button" className="btn-sm" onClick={() => setRegisterOpen(false)}>
-                Cancel
-              </button>
-              <button type="submit" className="btn-pill btn-pill-yellow">
-                Submit for Review
-              </button>
-            </div>
-          </form>
-        </Modal>
       )}
     </AdminLayout>
   );

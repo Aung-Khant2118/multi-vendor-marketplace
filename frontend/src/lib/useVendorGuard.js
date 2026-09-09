@@ -16,7 +16,7 @@ import { useHasMounted } from './useHasMounted';
 // Deferring both the render decision and the redirect until after mount
 // keeps the first paint identical to SSR, then the real state takes over.
 export function useVendorGuard() {
-  const { isAuthenticated: authState, isVendor: vendorState } = useAuth();
+  const { isAuthenticated: authState, isVendor: vendorState, syncing } = useAuth();
   const router = useRouter();
   const mounted = useHasMounted();
   const isAuthenticated = mounted && authState;
@@ -25,6 +25,9 @@ export function useVendorGuard() {
 
   useEffect(() => {
     if (!mounted) return;
+    // Wait for auth sync to complete before checking vendor status
+    if (syncing) return;
+    
     // Only redirect once to avoid flicker during rapid navigation
     if (hasRedirected.current) return;
     
@@ -37,7 +40,7 @@ export function useVendorGuard() {
       hasRedirected.current = true;
       router.replace('/');
     }
-  }, [mounted, isAuthenticated, isVendor, router]);
+  }, [mounted, isAuthenticated, isVendor, syncing, router]);
 
   return { ready: isAuthenticated && isVendor };
 }

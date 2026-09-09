@@ -19,7 +19,6 @@ export default function OrderDetail() {
   const { id } = router.query;
   const [order, setOrder] = useState(null);
   const [error, setError] = useState('');
-  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -33,21 +32,6 @@ export default function OrderDetail() {
   if (!isAuthenticated) {
     return <GuestGuard message="Log in to view order details." layout={false} />;
   }
-
-  const cancelOrder = async () => {
-    setCancelling(true);
-    try {
-      const res = await customerAPI.cancelOrder(id);
-      setOrder(res.data?.data || order);
-      toast.success('Order cancelled');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Could not cancel order');
-    } finally {
-      setCancelling(false);
-    }
-  };
-
-  const canCancel = order && ['PENDING', 'CONFIRMED'].includes(order.status);
 
   return (
     <div className="auth-container">
@@ -69,15 +53,6 @@ export default function OrderDetail() {
               <div className="info-row">
                 <strong>Payment:</strong> {order.paymentMethod} — {order.paymentStatus}
               </div>
-              {canCancel && (
-                <button
-                  className="btn-outline"
-                  onClick={cancelOrder}
-                  disabled={cancelling}
-                >
-                  {cancelling ? 'Cancelling...' : 'Cancel order'}
-                </button>
-              )}
             </div>
 
             <div className="dashboard-section">
@@ -94,7 +69,7 @@ export default function OrderDetail() {
               <h2 className="dashboard-subtitle">Items</h2>
               {(order.items || []).map((it) => (
                 <div key={it.id} className="info-row">
-                  <strong>{it.productName}</strong> — {it.sku} x {it.quantity} = ${it.subtotal}{' '}
+                  <strong>{it.productName}</strong> — {it.variantLabel || it.sku} x {it.quantity} = MMK {it.subtotal}{' '}
                   <em>({it.status})</em>
                 </div>
               ))}
@@ -102,10 +77,9 @@ export default function OrderDetail() {
 
             <div className="dashboard-section">
               <h2 className="dashboard-subtitle">Summary</h2>
-              <p>Subtotal: ${Number(order.subtotal).toFixed(2)}</p>
-              <p>Shipping: ${Number(order.shippingCost).toFixed(2)}</p>
-              <p>Tax: ${Number(order.tax).toFixed(2)}</p>
-              <p style={{ fontWeight: 600 }}>Total: ${Number(order.total).toFixed(2)}</p>
+              <p>Subtotal: MMK {Number(order.subtotal).toFixed(2)}</p>
+              <p>Shipping: MMK {Number(order.shippingCost).toFixed(2)}</p>
+              <p style={{ fontWeight: 600 }}>Total: MMK {Number(order.total).toFixed(2)}</p>
               {order.notes && <p>Notes: {order.notes}</p>}
             </div>
           </>

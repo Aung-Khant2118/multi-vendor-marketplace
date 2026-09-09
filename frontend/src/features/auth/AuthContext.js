@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
   // Restore session from the stored JWT without a network call.
   const [user, setUser] = useState(() => decodeToken(getStoredToken()));
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [token, setToken] = useState(() => getStoredToken());
 
   // On mount, sync the JWT role with the backend's current role.
@@ -34,6 +35,7 @@ export function AuthProvider({ children }) {
     if (!storedToken) return;
 
     const syncRole = async () => {
+      setSyncing(true);
       try {
         const meResponse = await authAPI.getCurrentUser();
         const meData = meResponse.data?.data || meResponse.data || null;
@@ -44,10 +46,14 @@ export function AuthProvider({ children }) {
           // Role changed (e.g. CUSTOMER → VENDOR) — get a fresh JWT
           const refreshResponse = await authAPI.refreshRole();
           const newToken = refreshResponse.data?.token || null;
+          const newRefreshToken = refreshResponse.data?.refreshToken || null;
           if (newToken) {
             localStorage.setItem('token', newToken);
             setToken(newToken);
             setUser(decodeToken(newToken));
+          }
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
           }
         } else {
           // Role unchanged — just enrich user state with backend data
@@ -64,9 +70,10 @@ export function AuthProvider({ children }) {
         // On 401, don't clear token here — the interceptor handles it.
         // For other errors, keep the existing token/user state intact.
         if (error.response?.status !== 401) {
-          // Non-auth error: keep existing session, just log it
           console.error('Auth sync error:', error.message);
         }
+      } finally {
+        setSyncing(false);
       }
     };
 
@@ -100,15 +107,18 @@ export function AuthProvider({ children }) {
     try {
       const response = await authAPI.login({ email, password });
       const token = response.data?.token || response.data?.accessToken || null;
+      const refreshToken = response.data?.refreshToken || null;
       const userFromResponse = response.data?.user || null;
 
       if (token) {
         localStorage.setItem('token', token);
         setToken(token);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
         if (userFromResponse) {
           setUser(userFromResponse);
         } else {
-          // Backend login returns only a token; derive user (incl. role) from it.
           setUser(decodeToken(token));
         }
       }
@@ -179,6 +189,7 @@ export function AuthProvider({ children }) {
       // ignore network errors on logout
     } finally {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setToken(null);
       setUser(null);
     }
@@ -195,6 +206,7 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     loading,
+    syncing,
     token,
     login,
     register,

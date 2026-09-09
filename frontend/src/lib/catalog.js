@@ -8,65 +8,18 @@ import {
 import { FaTshirt, FaUtensils, FaFootballBall } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
 
-// Deterministic pseudo-random in [0, 1), seeded by an integer id so the
-// same product always displays the same mock rating/store on every render.
-function seededRandom(seed) {
-  const x = Math.sin(seed * 999331 + 12.9898) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-const STORE_NAME_POOL = [
-  'Juniper Market',
-  'Northline Goods',
-  'Oak & Loom',
-  'Harbor Studio',
-  'Field Ritual',
-  'Volt District',
-  'Cedar & Co.',
-  'Wren Supply',
-];
-
-// Rating/review fields are still derived deterministically per product id
-// since the backend ProductResponse doesn't expose them yet. The store name
-// however now comes from the real vendor profile via ProductResponse.storeName,
-// falling back to the pool only for legacy/fallback products.
 export function enrichProduct(product) {
-  const seed = Number(product.id) || 1;
-  const rating = (4.5 + seededRandom(seed) * 0.5).toFixed(1);
-  const reviewCount = 40 + Math.floor(seededRandom(seed + 1) * 280);
-  const storeName = product.storeName || STORE_NAME_POOL[Number(product.vendorId || seed) % STORE_NAME_POOL.length];
-  const verified = seededRandom(seed + 2) > 0.15;
-  const image =
-    (product.images && product.images.length > 0 && product.images[0]) ||
-    pickImage(product);
+  const storeName = product.storeName || 'Marketplace';
+  const verified = Boolean(product.vendorId);
+  const imgs = Array.isArray(product.images) ? product.images : (product.images ? [...product.images] : []);
+  const image = imgs.length > 0 ? imgs[0] : null;
 
   return {
     ...product,
-    displayRating: rating,
-    displayReviewCount: reviewCount,
     displayStoreName: storeName,
     displayVerified: verified,
     displayImage: image,
   };
-}
-
-// Generic pool used only for real backend products that come back with an
-// empty images[] array (unknown name, so images are picked by id hash
-// rather than matched to content).
-const IMAGE_POOL = [
-  'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=600&q=80&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1543076447-215ad9ba6923?w=600&q=80&auto=format&fit=crop',
-];
-
-function pickImage(product) {
-  const seed = Math.abs(Number(product.id) || 1);
-  return IMAGE_POOL[seed % IMAGE_POOL.length];
 }
 
 // Sample catalog matching the design mockups, used only as a fallback

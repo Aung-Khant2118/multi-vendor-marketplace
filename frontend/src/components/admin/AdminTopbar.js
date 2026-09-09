@@ -1,10 +1,27 @@
 import { useState } from 'react';
 import Link from 'next/link';
-import { FiSearch, FiBell, FiMenu, FiSettings, FiLogOut } from 'react-icons/fi';
+import { useRouter } from 'next/router';
+import { FiMenu, FiSettings, FiLogOut } from 'react-icons/fi';
+import { useAuth } from '../../features/auth/AuthContext';
+import NotificationBell from '../notifications/NotificationBell';
 
-export default function AdminTopbar({ onOpenMobileMenu, searchPlaceholder = 'Search dashboard data...' }) {
-  const [query, setQuery] = useState('');
+const initialsOf = (user) => {
+  if (!user) return 'AD';
+  const a = user.firstName?.[0] || '';
+  const b = user.lastName?.[0] || '';
+  return (a + b || user.email?.[0] || 'AD').toUpperCase();
+};
+
+export default function AdminTopbar({ onOpenMobileMenu }) {
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await logout();
+    router.push('/auth/login');
+  };
 
   return (
     <div className="app-topbar">
@@ -12,25 +29,12 @@ export default function AdminTopbar({ onOpenMobileMenu, searchPlaceholder = 'Sea
         <FiMenu size={20} />
       </button>
 
-      <form className="search-bar" onSubmit={(e) => e.preventDefault()}>
-        <FiSearch size={18} />
-        <input
-          type="text"
-          placeholder={searchPlaceholder}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </form>
-
       <div className="topbar-actions">
-        <button type="button" className="vendor-bell" aria-label="Notifications">
-          <FiBell size={20} />
-          <span className="vendor-bell-dot" />
-        </button>
+        <NotificationBell audience="admin" />
 
         <div style={{ position: 'relative' }}>
           <button type="button" className="topbar-user-chip" onClick={() => setMenuOpen((v) => !v)}>
-            <span className="sidebar-avatar">AM</span>
+            <span className="sidebar-avatar">{initialsOf(user)}</span>
           </button>
 
           {menuOpen && (
@@ -38,9 +42,9 @@ export default function AdminTopbar({ onOpenMobileMenu, searchPlaceholder = 'Sea
               <Link href="/settings" onClick={() => setMenuOpen(false)}>
                 <FiSettings /> Settings
               </Link>
-              <Link href="/auth/login" onClick={() => setMenuOpen(false)}>
+              <button type="button" onClick={handleLogout}>
                 <FiLogOut /> Log out
-              </Link>
+              </button>
             </div>
           )}
         </div>

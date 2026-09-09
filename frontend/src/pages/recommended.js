@@ -1,72 +1,66 @@
-import { useEffect, useMemo, useState } from 'react';
-import { HiSparkles } from 'react-icons/hi2';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import { FiChevronDown } from 'react-icons/fi';
 import { customerAPI } from '../services/api';
 import AppLayout from '../components/layout/AppLayout';
 import ProductCard from '../components/marketplace/ProductCard';
 
-const TABS = ['All', 'Trending', 'Based on recent views', 'Top Vendors'];
+const TABS = [
+  { label: 'For You', value: 'for_you' },
+  { label: 'Trending', value: 'trending' },
+  { label: 'Top Rated', value: 'top_rated' },
+  { label: 'New Arrivals', value: 'new_arrivals' },
+];
 const PAGE_SIZE = 8;
 
 export default function Recommended() {
+  const router = useRouter();
   const [products, setProducts] = useState(null);
-  const [tab, setTab] = useState('All');
+  const [tab, setTab] = useState('for_you');
   const [visible, setVisible] = useState(PAGE_SIZE);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    setProducts(null);
+    setVisible(PAGE_SIZE);
     customerAPI
-      .getProducts()
+      .getRecommendations({ tab, limit: 50 })
       .then((res) => setProducts(res.data?.data || []))
-      .catch((err) => { console.error('Failed to load products:', err); setProducts([]); });
-  }, []);
-
-  const catalog = useMemo(() => {
-    const list = products || [];
-    const copy = [...list];
-    if (tab === 'Trending') copy.sort((a, b) => Number(b.id) - Number(a.id));
-    if (tab === 'Based on recent views') copy.reverse();
-    if (tab === 'Top Vendors') copy.sort((a, b) => Number(a.vendorId) - Number(b.vendorId));
-    return copy;
-  }, [products, tab]);
-
-  const loading = products === null;
+      .catch((err) => { console.error('Failed to load recommendations:', err); setProducts([]); })
+      .finally(() => setLoading(false));
+  }, [tab]);
 
   return (
     <AppLayout>
       <div className="page-heading">
-        <div>
-          <h1>Recommended for You</h1>
-          <p>Personalized product picks curated from top verified vendors</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className="filter-pill"
+            style={{ padding: '4px 10px', fontSize: 12 }}
+          >
+            ← Back
+          </button>
+          <div>
+            <h1>Recommended for You</h1>
+            <p>Personalized product picks curated from top verified vendors</p>
+          </div>
         </div>
-        <span className="pill-badge">
-          <HiSparkles /> Picked for you
-        </span>
       </div>
 
       <div className="tab-row">
         {TABS.map((t) => (
           <button
-            key={t}
+            key={t.value}
             type="button"
-            className={`tab-pill ${tab === t ? 'active' : ''}`}
-            onClick={() => {
-              setTab(t);
-              setVisible(PAGE_SIZE);
-            }}
+            className={`tab-pill ${tab === t.value ? 'active' : ''}`}
+            onClick={() => setTab(t.value)}
           >
-            {t}
+            {t.label}
           </button>
         ))}
-      </div>
-
-      <div className="info-banner">
-        <span className="info-banner-icon">
-          <HiSparkles />
-        </span>
-        <div>
-          <div className="info-banner-title">Fresh matches, tuned to your taste</div>
-          <div className="info-banner-copy">Updated from your recent views, saved items, and trusted vendor activity.</div>
-        </div>
       </div>
 
       {loading ? (
@@ -74,12 +68,12 @@ export default function Recommended() {
       ) : (
         <>
           <div className="product-grid">
-            {catalog.slice(0, visible).map((p) => (
+            {products.slice(0, visible).map((p) => (
               <ProductCard key={p.id} product={p} variant="recommended" />
             ))}
           </div>
 
-          {visible < catalog.length && (
+          {visible < products.length && (
             <div className="load-more-wrap">
               <button type="button" className="btn-load-more" onClick={() => setVisible((v) => v + PAGE_SIZE)}>
                 Load More Recommendations <FiChevronDown />
